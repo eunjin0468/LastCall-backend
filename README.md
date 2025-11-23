@@ -20,7 +20,7 @@
 ---
 
 ## 📌프로젝트 소개 <a id="프로젝트-소개"></a>
-<img width="1948" height="672" alt="image" src="https://github.com/user-attachments/assets/b1a1cfc6-e714-44bc-a894-aeb42c123026" />   
+<img width="2350" height="1454" alt="image" src="https://github.com/user-attachments/assets/8c374a84-7997-433e-bdd9-73f1a285e265" />
 
 LastCall은 상품 등록부터 입찰, 예약, 낙찰 정산까지의 과정을 자동으로 처리해 주는 실시간 경매 플랫폼이에요.  
 사용자는 경매를 직접 관리할 필요 없이, 입찰과 결과만 편하게 확인할 수 있어요.  
