@@ -119,7 +119,7 @@ LastCall은 상품 등록부터 입찰, 예약, 낙찰 정산까지의 과정을
 ---
 
 ## ☁️인프라 아키텍처 <a id="인프라-아키텍처"></a>
-<img width="991" height="747" alt="Image" src="https://github.com/user-attachments/assets/ada70ad3-8bbe-4874-9705-756161d1e367" />
+<img width="600" height="600" alt="Image" src="https://github.com/user-attachments/assets/ada70ad3-8bbe-4874-9705-756161d1e367" />
 
 ## 🧪테스트 <a id="테스트"></a>
 <img width="746" height="354" alt="스크린샷 2025-11-18 오후 2 33 32" src="https://github.com/user-attachments/assets/01c3b0cf-5048-4f22-91f2-cafd239e312d" />  
