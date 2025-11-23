@@ -63,7 +63,7 @@ LastCall은 상품 등록부터 입찰, 예약, 낙찰 정산까지의 과정을
 
 
 ## ☑️ System Architecture
-<img width="1686" height="1686" alt="image" src="https://github.com/user-attachments/assets/f45f7f95-c0d6-4cae-a7f5-f0291574032b" />
+<img width="600" height="600" alt="image" src="https://github.com/user-attachments/assets/f45f7f95-c0d6-4cae-a7f5-f0291574032b" />
 
 ## ⚙️ 경매 핵심 기능 구조 
 ### ⏰ 실시간 입찰 동시성 제어 (Redis 분산 락)
