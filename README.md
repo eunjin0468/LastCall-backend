@@ -1,105 +1,63 @@
-# 🎯 LastCall – 실시간 경매 플랫폼 백엔드         
+# LastCall! – 실시간 경매 플랫폼         
 
-> **Redis 기반 동시성 제어 + RabbitMQ 자동 낙찰 + 포인트 기반 내부 정산 시스템을 갖춘 경매 서비스**<br>
-> 실시간 입찰의 무결성과 경매 종료 시점 자동 처리까지, 안정적인 경매 흐름을 제공하는 백엔드 시스템입니다.
+🛍️ "이 상품, 내가 꼭 낙찰받고 싶다!"  
+하지만 입찰이 어떻게 진행되는지 실시간으로 확인하기 어렵고, 언제 경매가 끝나는지도 불분명한 경우가 많아요.
+
+💸 “입찰했는데 금액이 반영이 안 됐어…”  
+입찰 시점 **동시성 문제**나 **데이터 지연**으로 인해 공정한 경쟁이 어려울 때도 있죠.
+
+⏰ “경매 시간을 내가 직접 정할 수 있으면 좋을 텐데…”  
+정해진 시간대에만 진행되는 플랫폼은 사용자 입장에서 아쉬움이 많습니다.
+
+그래서 저희는 만들었습니다.  
+**“Last Call!"**  *제한된 시간 동안 실시간으로 입찰이 진행되는 온라인 경매 플랫폼*
+> 
+- "사용자가 직접 경매의 시작/종료 시간을 설정할 수 있어요"
+- "입찰은 실시간으로 반영되며, 현재 최고가를 바로 확인할 수 있어요"
+- "사용자는 포인트를 충전하고, 보유 포인트 내에서 자유롭게 입찰할 수 있어요."
+- "경매가 종료되면 시스템이 자동으로 최고 입찰가를 확인해 낙찰 내역을 기록합니다."
 
 ---
 
 ## 📌프로젝트 소개 <a id="프로젝트-소개"></a>
+LastCall은 상품 등록부터 입찰, 예약, 낙찰 정산까지의 과정을 자동으로 처리해 주는 실시간 경매 플랫폼이에요.  
+사용자는 경매를 직접 관리할 필요 없이, 입찰과 결과만 편하게 확인할 수 있어요.  
+- 사용자는 원하는 시간에 경매의 시작/종료 시점을 직접 설정할 수 있고,
+- 입찰은 서버에서 실시간으로 정확하게 반영되어, 현재 최고가를 바로 확인할 수 있어요.
+- RabbitMQ 예약 메시지를 이용해 경매는 지정된 시간에 자동으로 시작/종료됩니다.
+- 경매가 끝나면 시스템이 알아서 처리해요:
+    - 최고 입찰자를 낙찰자로 확정
+    - 유찰자에게는 예치 포인트 즉시 환불
+    - 낙찰자의 포인트는 정산 포인트로 이동
 
-**LastCall**은 제한된 시간 동안 실시간으로 입찰이 이루어지는 온라인 경매 플랫폼입니다.  
-사용자는 상품을 등록하고 다른 사용자들은 경매에 참여하여 실시간으로 입찰 경쟁을 펼칩니다.  
-경매는 예약 기능을 지원하며, RabbitMQ가 지정된 시간에 자동으로 경매를 시작·종료하고, 종료 시 최고 입찰자를 낙찰자로 확정합니다.  
-종료 시 유찰자에게는 예치 포인트가 환불되고, 낙찰자의 포인트는 정산 포인트로 이동하는 구조로 안정적인 내부 정산 흐름을 제공합니다.
-
-> 본 프로젝트는 **PG 결제 기능을 구현하지 않습니다.**  
-> 대신 **포인트 충전 → 예치(deposit) → 해제/차감** 구조로 실서비스급 내부 정산 시스템을 설계했습니다.
-
----
-
-## Table of Contents📚 
- 
-- [프로젝트 소개](#프로젝트-소개)
-- [기술 스택](#기술-스택)
-- [아키텍처 개요](#아키텍처-개요)
-- [핵심 기능](#핵심-기능)
-- [ERD](#erd)
-- [API 명세서](#api-명세서)
-- [와이어 프레임](#와이어-프레임)
-- [인프라 아키텍처](#인프라-아키텍처)
-- [테스트](#테스트)
-- [성능 테스트](#성능-테스트)
-- [프로젝트 구조](#프로젝트-구조)
+사용자는 입찰에만 집중하면 되고, 나머지 과정은 모두 시스템이 알아서 처리하는 구조로 되어 있어요.
 
 ---
 
-## 🚀기술 스택 <a id="기술-스택"></a>
+## 🛠️ Tech Stack
 
-### **Back-end**
-![Java 17](https://img.shields.io/badge/Java_17-007396?style=for-the-badge&logo=java&logoColor=white)
-![Spring Boot](https://img.shields.io/badge/Spring_Boot-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)
-![Spring Data JPA](https://img.shields.io/badge/Spring_Data_JPA-6DB33F?style=for-the-badge&logo=spring&logoColor=white)
-![QueryDSL](https://img.shields.io/badge/QueryDSL-005C84?style=for-the-badge)
-![RabbitMQ](https://img.shields.io/badge/RabbitMQ-FF6600?style=for-the-badge&logo=rabbitmq&logoColor=white)
+### 🧩 Backend
+![Java 17](https://img.shields.io/badge/Java_17-007396?style=for-the-badge&logo=java&logoColor=white) ![Spring Boot](https://img.shields.io/badge/Spring_Boot-6DB33F?style=for-the-badge&logo=springboot&logoColor=white) ![Spring Data JPA](https://img.shields.io/badge/Spring_Data_JPA-6DB33F?style=for-the-badge&logo=spring&logoColor=white) ![QueryDSL](https://img.shields.io/badge/QueryDSL-005C84?style=for-the-badge) ![RabbitMQ](https://img.shields.io/badge/RabbitMQ-FF6600?style=for-the-badge&logo=rabbitmq&logoColor=white)
 
+### 🔐 Authentication
+![Spring Security](https://img.shields.io/badge/Spring_Security-6DB33F?style=for-the-badge&logo=springsecurity&logoColor=white) ![JWT](https://img.shields.io/badge/JWT-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white)
 
+### 🗄️ Database & In-memory
+![MySQL](https://img.shields.io/badge/MySQL_8-4479A1?style=for-the-badge&logo=mysql&logoColor=white) ![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)
 
-### **Authentication**
-![Spring Security](https://img.shields.io/badge/Spring_Security-6DB33F?style=for-the-badge&logo=springsecurity&logoColor=white)
-![JWT](https://img.shields.io/badge/JWT-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white)
+### ☁️ Infra · DevOps
+![AWS](https://img.shields.io/badge/AWS-232F3E?style=for-the-badge&logo=amazonaws&logoColor=white) ![AWS VPC](https://img.shields.io/badge/AWS_VPC-232F3E?style=for-the-badge&logo=amazonaws&logoColor=white)
+![AWS ECS](https://img.shields.io/badge/AWS_ECS-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)
+![AWS ECR](https://img.shields.io/badge/AWS_ECR-FF9900?style=for-the-badge&logo=amazonecr&logoColor=white) ![AWS ALB](https://img.shields.io/badge/AWS_ALB-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white) ![AWS IAM](https://img.shields.io/badge/AWS_IAM-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white) ![AWS Route 53](https://img.shields.io/badge/AWS_Route_53-8C4FFF?style=for-the-badge&logo=amazonaws&logoColor=white) ![AWS NAT Gateway](https://img.shields.io/badge/AWS_NAT_Gateway-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white) ![AWS S3](https://img.shields.io/badge/AWS_S3-569A31?style=for-the-badge&logo=amazons3&logoColor=white) ![AWS RDS](https://img.shields.io/badge/AWS_RDS-527FFF?style=for-the-badge&logo=amazonrds&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white) ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-000000?style=for-the-badge&logo=githubactions&logoColor=white)
 
+### 📈 Monitoring
+![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?style=for-the-badge&logo=prometheus&logoColor=white) ![Grafana](https://img.shields.io/badge/Grafana-F46800?style=for-the-badge&logo=grafana&logoColor=white)
 
+### ⚙️ Tools
+![IntelliJ IDEA](https://img.shields.io/badge/IntelliJ_IDEA-000000?style=for-the-badge&logo=intellijidea&logoColor=white) ![Git](https://img.shields.io/badge/Git-F05032?style=for-the-badge&logo=git&logoColor=white) ![GitHub](https://img.shields.io/badge/GitHub-000000?style=for-the-badge&logo=github&logoColor=white) ![Postman](https://img.shields.io/badge/Postman-FF6C37?style=for-the-badge&logo=postman&logoColor=white) ![Swagger](https://img.shields.io/badge/Swagger-85EA2D?style=for-the-badge&logo=swagger&logoColor=black) ![nGrinder](https://img.shields.io/badge/nGrinder-000000?style=for-the-badge)
 
-### **Collaboration**
-![Git](https://img.shields.io/badge/Git-F05032?style=for-the-badge&logo=git&logoColor=white)
-![GitHub](https://img.shields.io/badge/GitHub-000000?style=for-the-badge&logo=github&logoColor=white)
-![ERDCloud](https://img.shields.io/badge/ERDCloud-0D96F6?style=for-the-badge&logoColor=white)
-![Figma](https://img.shields.io/badge/Figma-F24E1E?style=for-the-badge&logo=figma&logoColor=white)
-![Notion](https://img.shields.io/badge/Notion-000000?style=for-the-badge&logo=notion&logoColor=white)
-![Slack](https://img.shields.io/badge/Slack-4A154B?style=for-the-badge&logo=slack&logoColor=white)
-![Zep](https://img.shields.io/badge/ZEP-6C4BF4?style=for-the-badge&logoColor=white)
-
-
-
-### **Tools**
-![IntelliJ IDEA](https://img.shields.io/badge/IntelliJ_IDEA-000000?style=for-the-badge&logo=intellijidea&logoColor=white)
-
-
-
-### **Monitoring**
-![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?style=for-the-badge&logo=prometheus&logoColor=white)
-![Grafana](https://img.shields.io/badge/Grafana-F46800?style=for-the-badge&logo=grafana&logoColor=white)
-
-
-
-### **Infra & CI/CD**
-![AWS](https://img.shields.io/badge/AWS-232F3E?style=for-the-badge&logo=amazonaws&logoColor=white)
-![AWS ECR](https://img.shields.io/badge/AWS_ECR-FF9900?style=for-the-badge&logo=amazonecr&logoColor=white)
-![AWS ALB](https://img.shields.io/badge/AWS_ALB-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)
-![AWS IAM](https://img.shields.io/badge/AWS_IAM-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)
-![AWS S3](https://img.shields.io/badge/AWS_S3-569A31?style=for-the-badge&logo=amazons3&logoColor=white)
-![AWS RDS](https://img.shields.io/badge/AWS_RDS-527FFF?style=for-the-badge&logo=amazonrds&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-000000?style=for-the-badge&logo=githubactions&logoColor=white)
-![AWS Route 53](https://img.shields.io/badge/AWS_Route_53-8C4FFF?style=for-the-badge&logo=amazonaws&logoColor=white)
-![AWS NAT Gateway](https://img.shields.io/badge/AWS_NAT_Gateway-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)
-
-
-
-### **Database / In-memory**
-![MySQL](https://img.shields.io/badge/MySQL_8-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
-![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)
-
-
-
-### **Test**
-![nGrinder](https://img.shields.io/badge/nGrinder-000000?style=for-the-badge)
-![Postman](https://img.shields.io/badge/Postman-FF6C37?style=for-the-badge&logo=postman&logoColor=white)
-![Swagger](https://img.shields.io/badge/Swagger-85EA2D?style=for-the-badge&logo=swagger&logoColor=black)
-
----
-## 🧩아키텍처 개요 <a id="아키텍처-개요"></a>
-![System Architecture](https://github.com/user-attachments/assets/037e6ba7-8fbd-48c7-98b3-f624d8c1b26f)
+### 💬 Collaboration
+![Notion](https://img.shields.io/badge/Notion-000000?style=for-the-badge&logo=notion&logoColor=white) ![Figma](https://img.shields.io/badge/Figma-F24E1E?style=for-the-badge&logo=figma&logoColor=white) ![ERDCloud](https://img.shields.io/badge/ERD_Cloud-0D96F6?style=for-the-badge&logoColor=white) ![Slack](https://img.shields.io/badge/Slack-4A154B?style=for-the-badge&logo=slack&logoColor=white) ![ZEP](https://img.shields.io/badge/ZEP-6C4BF4?style=for-the-badge&logoColor=white)
 
 
 ### ☑️ System Architecture
