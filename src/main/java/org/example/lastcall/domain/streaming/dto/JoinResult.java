@@ -5,7 +5,6 @@ import lombok.Getter;
 
 @Getter
 public class JoinResult {
-
   private boolean result;
 
   @Builder
