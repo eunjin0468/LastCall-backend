@@ -22,7 +22,6 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 @Component
 @RequiredArgsConstructor
 public class AuctionStreamingHandler extends TextWebSocketHandler {
-
   private final ObjectMapper objectMapper;
   private final ConcurrentHashMap<String, UserSession> sessions = new ConcurrentHashMap<>();
 
