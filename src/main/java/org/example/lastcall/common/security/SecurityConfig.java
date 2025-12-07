@@ -47,6 +47,7 @@ public class SecurityConfig {
                                 "/webjars/**")
                         .permitAll()
                         .requestMatchers("/api/v1/auth/withdraw").authenticated()
+                        .requestMatchers("/signal/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth").permitAll()
                         .requestMatchers("/api/v1/auth/login", "/api/v1/auth/signup", "/api/v1/auth/logout", "/api/v1/auth/tokens").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/auctions").permitAll()
