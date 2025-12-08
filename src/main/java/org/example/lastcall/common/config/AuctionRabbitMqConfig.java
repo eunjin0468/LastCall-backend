@@ -12,7 +12,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Configuration
-public class AuctionConfig {
+public class AuctionRabbitMqConfig {
     public static final String EXCHANGE_NAME = "auction.exchange";
     public static final String START_QUEUE_NAME = "auction.start.queue";
     public static final String END_QUEUE_NAME = "auction.end.queue";
