@@ -3,7 +3,7 @@ package org.example.lastcall.domain.auction.service.event;
 import com.rabbitmq.client.Channel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.lastcall.common.config.AuctionConfig;
+import org.example.lastcall.common.config.AuctionRabbitMqConfig;
 import org.example.lastcall.common.exception.BusinessException;
 import org.example.lastcall.domain.auction.entity.Auction;
 import org.example.lastcall.domain.auction.exception.AuctionErrorCode;
@@ -25,12 +25,12 @@ public class AuctionEventListener {
     private final AuctionRepository auctionRepository;
 
     // 이벤트 처리 메서드
-    @RabbitListener(queues = AuctionConfig.START_QUEUE_NAME)
+    @RabbitListener(queues = AuctionRabbitMqConfig.START_QUEUE_NAME)
     public void handleAuctionStart(AuctionEvent event, Message message, Channel channel) {
         processEvent(event, message, channel, auctionCommandService::startAuction, "[RabbitMQ] 경매 시작");
     }
 
-    @RabbitListener(queues = AuctionConfig.END_QUEUE_NAME)
+    @RabbitListener(queues = AuctionRabbitMqConfig.END_QUEUE_NAME)
     public void handleAuctionEnd(AuctionEvent event, Message message, Channel channel) {
         processEvent(event, message, channel, auctionCommandService::closeAuction, "[RabbitMQ] 경매 종료");
     }
