@@ -98,7 +98,7 @@ public class AuctionRabbitMqConfig {
   @Bean
   public Binding auctionEndBinding(
       @Qualifier("auctionEndQueue") Queue auctionEndQueue,
-      CustomExchange auctionExchange) {
+      @Qualifier("auctionExchange") CustomExchange auctionExchange) {
     return BindingBuilder.bind(auctionEndQueue).to(auctionExchange).with(AUCTION_END_KEY).noargs();
   }
 
