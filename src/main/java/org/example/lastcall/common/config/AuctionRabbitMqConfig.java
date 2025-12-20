@@ -145,6 +145,6 @@ public class AuctionRabbitMqConfig {
     return BindingBuilder
         .bind(endDLQ)
         .to(auctionDLX)
-        .with(END_RETRY_ROUTING_KEY);
+        .with(END_DLQ_ROUTING_KEY);
   }
 }
