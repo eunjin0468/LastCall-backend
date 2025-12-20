@@ -14,16 +14,16 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class AuctionEventListener {
     private final AuctionCommandService auctionCommandService;
-    private final AuctionEventConsumer auctionEventConsumer;
-    private final org.springframework.amqp.rabbit.core.RabbitTemplate rabbitTemplate;
+    private final AuctionEventProcessor auctionEventConsumer;
 
-    // 이벤트 처리 메서드
-    @RabbitListener(queues = AuctionRabbitMqConfig.START_QUEUE_NAME)
+    // 경매 시작 이벤트 처리 메서드
+    @RabbitListener(queues = AuctionRabbitMqConfig.AUCTION_START_QUEUE)
     public void handleAuctionStart(AuctionEvent event, Message message, Channel channel) {
         auctionEventConsumer.processEvent(event, message, channel, auctionCommandService::startAuction, "[RabbitMQ] 경매 시작", "START");
     }
 
-    @RabbitListener(queues = AuctionRabbitMqConfig.END_QUEUE_NAME)
+    // 경매 종료 이벤트 처리 메서드
+    @RabbitListener(queues = AuctionRabbitMqConfig.AUCTION_END_QUEUE)
     public void handleAuctionEnd(AuctionEvent event, Message message, Channel channel) {
         auctionEventConsumer.processEvent(event, message, channel, auctionCommandService::closeAuction, "[RabbitMQ] 경매 종료", "END");
     }

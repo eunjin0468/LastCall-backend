@@ -7,143 +7,182 @@ import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Qualifier;
 
-import java.util.HashMap;
 import java.util.Map;
 
 @Configuration
 public class AuctionRabbitMqConfig {
 
-  public static final String EXCHANGE_NAME = "auction.exchange";
-  public static final String START_QUEUE_NAME = "auction.start.queue";
-  public static final String END_QUEUE_NAME = "auction.end.queue";
-  public static final String START_ROUTING_KEY = "auction.start.key";
-  public static final String END_ROUTING_KEY = "auction.end.key";
+  public static final String AUCTION_EXCHANGE = "auction.exchange";
+  public static final String AUCTION_START_QUEUE = "auction.start.queue";
+  public static final String AUCTION_END_QUEUE = "auction.end.queue";
+  public static final String AUCTION_START_KEY = "auction.start.key";
+  public static final String AUCTION_END_KEY = "auction.end.key";
 
-  public static final String DLX_NAME = "auction.dlx";
-  public static final String START_RETRY_QUEUE = "start.retry.queue";
-  public static final String END_RETRY_QUEUE = "end.retry.queue";
-  public static final String DLX_RETRY_ROUTING_KEY = "auction.retry.key";
+  public static final String AUCTION_DLX = "auction.dlx";
+  public static final String AUCTION_START_RETRY_QUEUE = "auction.start.retry.queue";
+  public static final String AUCTION_END_RETRY_QUEUE = "auction.end.retry.queue";
+  public static final String AUCTION_START_RETRY_KEY = "auction.start.retry.key";
+  public static final String AUCTION_END_RETRY_KEY = "auction.end.retry.key";
 
-  // Dead Letter Queue (최종 실패 메시지 보관)
-  public static final String START_DLQ = "start.dlq";
-  public static final String END_DLQ = "end.dlq";
-  public static final String DLQ_ROUTING_KEY = "auction.dlq.key";
+  public static final String AUCTION_START_DLQ = "auction.start.dlq";
+  public static final String AUCTION_END_DLQ = "auction.end.dlq";
+  public static final String AUCTION_START_DLQ_KEY = "auction.start.dlq.key";
+  public static final String AUCTION_END_DLQ_KEY = "auction.end.dlq.key";
 
+  public static final long AUCTION_RETRY_TTL_MS = 5000L;
+
+  /**
+   * Delayed Exchange(type: x-delayed-message)
+   * 메시지 헤더의 {@code x-delay(ms)} 값을 이용해 발행 시점을 지연한다.
+   */
   @Bean
-  public CustomExchange delayExchange() {
-    Map<String, Object> args = new HashMap<>();
-    args.put("x-delayed-type", "direct");
-
-    return new CustomExchange(EXCHANGE_NAME, "x-delayed-message", true, false, args);
+  public CustomExchange auctionExchange() {
+    Map<String, Object> args = Map.of("x-delayed-type", "direct");
+    return new CustomExchange(AUCTION_EXCHANGE, "x-delayed-message", true, false, args);
   }
 
+  /**
+   * JSON 직렬화/역직렬화를 위한 messageConverter
+   * @return
+   */
   @Bean
   public MessageConverter messageConverter() {
     return new Jackson2JsonMessageConverter();
   }
 
+  /**
+   * Auction 도메인 이벤트 발행용 RabbitTemplate
+   * {@link #messageConverter()}를 적용해 객체를 JSON으로 변환하여 전송한다.
+   */
   @Bean(name = "auctionRabbitTemplate")
-  public AmqpTemplate auctionRabbitTemplate(ConnectionFactory connectionFactory) {
+  public RabbitTemplate auctionRabbitTemplate(ConnectionFactory connectionFactory) {
     RabbitTemplate rabbitTemplate = new RabbitTemplate(connectionFactory);
     rabbitTemplate.setMessageConverter(messageConverter());
 
     return rabbitTemplate;
   }
 
+  /**
+   * 경매 시작 이벤트 처리 큐
+   * 시스템 예외로 NACK(requeue=false) 처리되면 DLX로 이동하며, Retry 라우팅 키를 사용한다.
+   */
   @Bean
-  public Queue startQueue() {
-    return QueueBuilder.durable(START_QUEUE_NAME)
-        .withArgument("x-dead-letter-exchange", DLX_NAME)
-        .withArgument("x-dead-letter-routing-key", DLX_RETRY_ROUTING_KEY)
+  public Queue auctionStartQueue() {
+    return QueueBuilder.durable(AUCTION_START_QUEUE)
+        .withArgument("x-dead-letter-exchange", AUCTION_DLX)
+        .withArgument("x-dead-letter-routing-key", AUCTION_START_RETRY_KEY)
+        .build();
+  }
+
+  /**
+   * 경매 종료 이벤트 처리 큐
+   * 시스템 예외로 NACK(requeue=false) 처리되면 DLX로 이동하며, Retry 라우팅 키를 사용한다.
+   */
+  @Bean
+  public Queue auctionEndQueue() {
+    return QueueBuilder.durable(AUCTION_END_QUEUE)
+        .withArgument("x-dead-letter-exchange", AUCTION_DLX)
+        .withArgument("x-dead-letter-routing-key", AUCTION_END_RETRY_KEY)
         .build();
   }
 
   @Bean
-  public Queue endQueue() {
-    return QueueBuilder.durable(END_QUEUE_NAME)
-        .withArgument("x-dead-letter-exchange", DLX_NAME)
-        .withArgument("x-dead-letter-routing-key", DLX_RETRY_ROUTING_KEY)
-        .build();
+  public Binding auctionStartBinding(
+      @Qualifier("auctionStartQueue") Queue auctionStartQueue,
+      @Qualifier("auctionExchange") CustomExchange auctionExchange) {
+    return BindingBuilder.bind(auctionStartQueue).to(auctionExchange).with(AUCTION_START_KEY).noargs();
   }
 
   @Bean
-  public Binding startBinding(Queue startQueue, CustomExchange delayExchange) {
-    return BindingBuilder.bind(startQueue).to(delayExchange).with(START_ROUTING_KEY).noargs();
+  public Binding auctionEndBinding(
+      @Qualifier("auctionEndQueue") Queue auctionEndQueue,
+      CustomExchange auctionExchange) {
+    return BindingBuilder.bind(auctionEndQueue).to(auctionExchange).with(AUCTION_END_KEY).noargs();
   }
 
-  @Bean
-  public Binding endBinding(Queue endQueue, CustomExchange delayExchange) {
-    return BindingBuilder.bind(endQueue).to(delayExchange).with(END_ROUTING_KEY).noargs();
-  }
-
-  // Dead Letter Exchange (DLX)
+  // DLX: 원본 큐에서 NACK(requeue=false)된 메시지가 이동하는 Dead Letter Exchange
   @Bean
   public DirectExchange auctionDLX() {
-    return new DirectExchange(DLX_NAME);
+    return new DirectExchange(AUCTION_DLX);
   }
 
-  // Retry Queue (지연 재시도용)
+  /**
+   * 시작 이벤트 Retry 큐
+   * 시스템 예외(일시 장애) 발생 시 TTL 지연 후 원본 큐로 재투입
+   * TTL({@link #AUCTION_RETRY_TTL_MS}) 만료 시 {@code auction.exchange}로 재발행되어 원본 큐로 복귀한다.
+   */
   @Bean
-  public Queue startRetryQueue() {
-    return QueueBuilder.durable(START_RETRY_QUEUE)
-        .withArgument("x-dead-letter-exchange", EXCHANGE_NAME)
-        .withArgument("x-dead-letter-routing-key", START_ROUTING_KEY)
-        .withArgument("x-message-ttl", 5000) // 첫 재시도 5초 후 실행
+  public Queue auctionStartRetryQueue() {
+    return QueueBuilder.durable(AUCTION_START_RETRY_QUEUE)
+        .withArgument("x-dead-letter-exchange", AUCTION_EXCHANGE)
+        .withArgument("x-dead-letter-routing-key", AUCTION_START_KEY)
+        .withArgument("x-message-ttl", AUCTION_RETRY_TTL_MS) // retry delay
         .build();
   }
 
+  /**
+   * 종료 이벤트 Retry 큐
+   * TTL({@link #AUCTION_RETRY_TTL_MS}) 만료 시 {@code auction.exchange}로 재발행되어 원본 큐로 복귀한다.
+   */
   @Bean
-  public Queue endRetryQueue() {
-    return QueueBuilder.durable(END_RETRY_QUEUE)
-        .withArgument("x-dead-letter-exchange", EXCHANGE_NAME)
-        .withArgument("x-dead-letter-routing-key", END_ROUTING_KEY)
-        .withArgument("x-message-ttl", 5000)
+  public Queue auctionEndRetryQueue() {
+    return QueueBuilder.durable(AUCTION_END_RETRY_QUEUE)
+        .withArgument("x-dead-letter-exchange", AUCTION_EXCHANGE)
+        .withArgument("x-dead-letter-routing-key", AUCTION_END_KEY)
+        .withArgument("x-message-ttl", AUCTION_RETRY_TTL_MS)
         .build();
   }
 
   // Retry Queue Binding
   @Bean
-  public Binding startRetryBinding(Queue startRetryQueue, DirectExchange auctionDLX) {
+  public Binding auctionStartRetryBinding(
+      @Qualifier("auctionStartRetryQueue") Queue auctionStartRetryQueue,
+      DirectExchange auctionDLX) {
     return BindingBuilder
-        .bind(startRetryQueue)
+        .bind(auctionStartRetryQueue)
         .to(auctionDLX)
-        .with(DLX_RETRY_ROUTING_KEY);
+        .with(AUCTION_START_RETRY_KEY);
   }
 
   @Bean
-  public Binding endRetryBinding(Queue endRetryQueue, DirectExchange auctionDLX) {
+  public Binding auctionEndRetryBinding(
+      @Qualifier("auctionEndRetryQueue") Queue auctionEndRetryQueue,
+      DirectExchange auctionDLX) {
     return BindingBuilder
-        .bind(endRetryQueue)
+        .bind(auctionEndRetryQueue)
         .to(auctionDLX)
-        .with(DLX_RETRY_ROUTING_KEY);
+        .with(AUCTION_END_RETRY_KEY);
   }
 
-  // Dead Letter Queue (최종 실패 메시지 보관용)
+  // DLQ Queue: 최종 실패 메시지 보관
   @Bean
-  public Queue startDLQ() {
-    return QueueBuilder.durable(START_DLQ).build();
+  public Queue auctionStartDLQ() {
+    return QueueBuilder.durable(AUCTION_START_DLQ).build();
   }
 
   @Bean
-  public Queue endDLQ() {
-    return QueueBuilder.durable(END_DLQ).build();
+  public Queue auctionEndDLQ() {
+    return QueueBuilder.durable(AUCTION_END_DLQ).build();
   }
 
-  // DLQ Binding
+  // DLQ Binding: DLX에 바인딩하여 DLQ 라우팅 키로 들어오는 메시지를 수신
   @Bean
-  public Binding startDLQBinding(Queue startDLQ, DirectExchange auctionDLX) {
+  public Binding auctionStartDLQBinding(
+      @Qualifier("auctionStartDLQ") Queue auctionStartDLQ, DirectExchange auctionDLX) {
     return BindingBuilder
-        .bind(startDLQ)
+        .bind(auctionStartDLQ)
         .to(auctionDLX)
-        .with(DLQ_ROUTING_KEY);
+        .with(AUCTION_START_DLQ_KEY);
   }
 
   @Bean
-  public Binding endDLQBinding(Queue endDLQ, DirectExchange auctionDLX) {
+  public Binding auctionEndDLQBinding(
+      @Qualifier("auctionEndDLQ") Queue auctionEndDLQ, DirectExchange auctionDLX) {
     return BindingBuilder
-        .bind(endDLQ)
+        .bind(auctionEndDLQ)
         .to(auctionDLX)
-        .with(DLQ_ROUTING_KEY);
+        .with(AUCTION_END_DLQ_KEY);
   }
 }
