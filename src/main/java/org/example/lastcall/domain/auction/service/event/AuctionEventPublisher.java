@@ -13,8 +13,8 @@ public class AuctionEventPublisher {
     // 경매 시작 이벤트를 큐로 발행하는 메서드
     public void sendAuctionStartEvent(AuctionEvent event, Long delayMillis) {
         rabbitTemplate.convertAndSend(
-                AuctionRabbitMqConfig.EXCHANGE_NAME,
-                AuctionRabbitMqConfig.START_ROUTING_KEY,
+                AuctionRabbitMqConfig.AUCTION_EXCHANGE,
+                AuctionRabbitMqConfig.AUCTION_START_KEY,
                 event,
                 message -> {
                     message.getMessageProperties().setHeader("x-delay", delayMillis);
@@ -26,8 +26,8 @@ public class AuctionEventPublisher {
     // 경매 종료 이벤트를 큐로 발행하는 메서드
     public void sendAuctionEndEvent(AuctionEvent event, Long delayMillis) {
         rabbitTemplate.convertAndSend(
-                AuctionRabbitMqConfig.EXCHANGE_NAME,
-                AuctionRabbitMqConfig.END_ROUTING_KEY,
+                AuctionRabbitMqConfig.AUCTION_EXCHANGE,
+                AuctionRabbitMqConfig.AUCTION_END_KEY,
                 event,
                 message -> {
                     message.getMessageProperties().setHeader("x-delay", delayMillis);
