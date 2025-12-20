@@ -116,7 +116,7 @@ public class AuctionEventProcessor {
     String rk = switch (queueType) {
       case "START" -> AuctionRabbitMqConfig.AUCTION_START_DLQ_KEY;
       case "END"   -> AuctionRabbitMqConfig.AUCTION_END_DLQ_KEY;
-      default      -> AuctionRabbitMqConfig.AUCTION_END_DLQ_KEY;
+      default      -> throw new IllegalArgumentException("Unsupported queueType for DLQ: " + queueType);
     };
     rabbitTemplate.convertAndSend(AuctionRabbitMqConfig.AUCTION_DLX, rk, event);
   }
