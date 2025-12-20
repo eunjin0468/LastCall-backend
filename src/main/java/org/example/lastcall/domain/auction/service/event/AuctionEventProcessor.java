@@ -17,7 +17,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class AuctionEventConsumer {
+public class AuctionEventProcessor {
   private final AuctionRepository auctionRepository;
   private final org.springframework.amqp.rabbit.core.RabbitTemplate rabbitTemplate;
   public static final int MAX_RETRY_COUNT = 3;
