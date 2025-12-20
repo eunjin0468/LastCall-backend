@@ -4,10 +4,6 @@ import com.rabbitmq.client.Channel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.lastcall.common.config.AuctionRabbitMqConfig;
-import org.example.lastcall.common.exception.BusinessException;
-import org.example.lastcall.domain.auction.entity.Auction;
-import org.example.lastcall.domain.auction.exception.AuctionErrorCode;
-import org.example.lastcall.domain.auction.repository.AuctionRepository;
 import org.example.lastcall.domain.auction.service.command.AuctionCommandService;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -18,8 +14,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class AuctionEventListener {
     private final AuctionCommandService auctionCommandService;
-    private final AuctionEventConsumer auctionEventConsumer;
-    private final org.springframework.amqp.rabbit.core.RabbitTemplate rabbitTemplate;
+    private final AuctionEventProcessor auctionEventConsumer;
 
     // 이벤트 처리 메서드
     @RabbitListener(queues = AuctionRabbitMqConfig.AUCTION_START_QUEUE)
