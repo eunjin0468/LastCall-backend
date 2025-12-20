@@ -87,11 +87,11 @@ public class AuctionEventConsumer {
   // DLQ로 메시지 전송
   private void sendToDLQ(AuctionEvent event, String queueType) {
     String rk = switch (queueType) {
-      case "START" -> AuctionRabbitMqConfig.START_DLQ_ROUTING_KEY;
-      case "END"   -> AuctionRabbitMqConfig.END_DLQ_ROUTING_KEY;
-      default      -> AuctionRabbitMqConfig.END_DLQ_ROUTING_KEY;
+      case "START" -> AuctionRabbitMqConfig.AUCTION_START_DLQ_KEY;
+      case "END"   -> AuctionRabbitMqConfig.AUCTION_END_DLQ_KEY;
+      default      -> AuctionRabbitMqConfig.AUCTION_END_DLQ_KEY;
     };
-    rabbitTemplate.convertAndSend(AuctionRabbitMqConfig.DLX_NAME, rk, event);
+    rabbitTemplate.convertAndSend(AuctionRabbitMqConfig.AUCTION_DLX, rk, event);
   }
 
   // 공용 ACK 헬퍼 메서드
