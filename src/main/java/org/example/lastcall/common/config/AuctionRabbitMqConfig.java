@@ -23,13 +23,14 @@ public class AuctionRabbitMqConfig {
   public static final String DLX_NAME = "auction.dlx";
   public static final String START_RETRY_QUEUE = "start.retry.queue";
   public static final String END_RETRY_QUEUE = "end.retry.queue";
-  public static final String DLX_RETRY_ROUTING_KEY = "auction.retry.key";
+  public static final String START_RETRY_ROUTING_KEY = "auction.start.retry.key";
+  public static final String END_RETRY_ROUTING_KEY   = "auction.end.retry.key";
 
   // Dead Letter Queue (최종 실패 메시지 보관)
   public static final String START_DLQ = "start.dlq";
   public static final String END_DLQ = "end.dlq";
-  public static final String DLQ_ROUTING_KEY = "auction.dlq.key";
-
+  public static final String START_DLQ_ROUTING_KEY   = "auction.start.dlq.key";
+  public static final String END_DLQ_ROUTING_KEY     = "auction.end.dlq.key";
   @Bean
   public CustomExchange delayExchange() {
     Map<String, Object> args = new HashMap<>();
@@ -55,7 +56,7 @@ public class AuctionRabbitMqConfig {
   public Queue startQueue() {
     return QueueBuilder.durable(START_QUEUE_NAME)
         .withArgument("x-dead-letter-exchange", DLX_NAME)
-        .withArgument("x-dead-letter-routing-key", DLX_RETRY_ROUTING_KEY)
+        .withArgument("x-dead-letter-routing-key", START_RETRY_ROUTING_KEY)
         .build();
   }
 
@@ -63,7 +64,7 @@ public class AuctionRabbitMqConfig {
   public Queue endQueue() {
     return QueueBuilder.durable(END_QUEUE_NAME)
         .withArgument("x-dead-letter-exchange", DLX_NAME)
-        .withArgument("x-dead-letter-routing-key", DLX_RETRY_ROUTING_KEY)
+        .withArgument("x-dead-letter-routing-key", END_RETRY_ROUTING_KEY)
         .build();
   }
 
@@ -108,7 +109,7 @@ public class AuctionRabbitMqConfig {
     return BindingBuilder
         .bind(startRetryQueue)
         .to(auctionDLX)
-        .with(DLX_RETRY_ROUTING_KEY);
+        .with(START_RETRY_ROUTING_KEY);
   }
 
   @Bean
@@ -116,7 +117,7 @@ public class AuctionRabbitMqConfig {
     return BindingBuilder
         .bind(endRetryQueue)
         .to(auctionDLX)
-        .with(DLX_RETRY_ROUTING_KEY);
+        .with(END_RETRY_ROUTING_KEY);
   }
 
   // Dead Letter Queue (최종 실패 메시지 보관용)
@@ -136,7 +137,7 @@ public class AuctionRabbitMqConfig {
     return BindingBuilder
         .bind(startDLQ)
         .to(auctionDLX)
-        .with(DLQ_ROUTING_KEY);
+        .with(START_DLQ_ROUTING_KEY);
   }
 
   @Bean
@@ -144,6 +145,6 @@ public class AuctionRabbitMqConfig {
     return BindingBuilder
         .bind(endDLQ)
         .to(auctionDLX)
-        .with(DLQ_ROUTING_KEY);
+        .with(END_RETRY_ROUTING_KEY);
   }
 }
