@@ -1,9 +1,7 @@
 package org.example.lastcall.common.config;
 
-import lombok.extern.slf4j.Slf4j;
+import org.example.lastcall.domain.auction.service.event.DlqPublishTracker;
 import org.springframework.amqp.core.*;
-import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
-import org.springframework.amqp.rabbit.connection.CachingConnectionFactory.ConfirmType;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
@@ -14,7 +12,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 
 import java.util.Map;
 
-@Slf4j
 @Configuration
 public class AuctionRabbitMqConfig {
 
@@ -61,22 +58,16 @@ public class AuctionRabbitMqConfig {
    * {@link #messageConverter()}를 적용해 객체를 JSON으로 변환하여 전송한다.
    */
   @Bean(name = "auctionRabbitTemplate")
-  public RabbitTemplate auctionRabbitTemplate(ConnectionFactory connectionFactory) {
+  public RabbitTemplate auctionRabbitTemplate(ConnectionFactory connectionFactory, DlqPublishTracker dlqPublishTracker) {
     RabbitTemplate rabbitTemplate = new RabbitTemplate(connectionFactory);
     rabbitTemplate.setMessageConverter(messageConverter());
 
-    // 라우팅 실패 시 Return 받기
     rabbitTemplate.setMandatory(true);
-
-    // return 롤백 로깅
     rabbitTemplate.setReturnsCallback(returned -> {
       String corrId = returned.getMessage().getMessageProperties().getCorrelationId();
-      log.error("[RabbitMQ] RETURN(unroutable). corrId={}, replyCode={}, replyText={}, exchange={}, rk={}",
-          corrId,
-          returned.getReplyCode(),
-          returned.getReplyText(),
-          returned.getExchange(),
-          returned.getRoutingKey());
+      if (corrId != null) {
+        dlqPublishTracker.getReturnedCorrelationIds().add(corrId);
+      }
     });
 
     return rabbitTemplate;

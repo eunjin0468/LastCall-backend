@@ -3,6 +3,8 @@ package org.example.lastcall.domain.auction.service.event;
 import com.rabbitmq.client.Channel;
 import java.io.IOException;
 import java.util.Objects;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,7 +14,10 @@ import org.example.lastcall.domain.auction.entity.Auction;
 import org.example.lastcall.domain.auction.exception.AuctionErrorCode;
 import org.example.lastcall.domain.auction.repository.AuctionRepository;
 import org.springframework.amqp.core.Message;
+import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 
 @Slf4j
 @Service
@@ -21,7 +26,9 @@ public class AuctionEventProcessor {
 
   public static final int MAX_RETRY_COUNT = 3;
   private final AuctionRepository auctionRepository;
-  private final org.springframework.amqp.rabbit.core.RabbitTemplate rabbitTemplate;
+  private final DlqPublishTracker dlqPublishTracker;
+  @Qualifier("auctionRabbitTemplate")
+  private final RabbitTemplate rabbitTemplate;
 
   private QueueType parseQueueType(String queueType) {
     try {
@@ -88,12 +95,17 @@ public class AuctionEventProcessor {
       int retryCount = getRetryCount(message, qt);
 
       if (retryCount >= MAX_RETRY_COUNT) {
-        log.error("[RabbitMQ] {} 시스템 예외 3회 초과 - DLQ로 전송: auctionId={}", eventType,
-            event.getAuctionId(), e);
+        log.error("[RabbitMQ] {} 시스템 예외 {}회 초과 - DLQ 전송 시도: auctionId={}",
+            eventType, MAX_RETRY_COUNT, event.getAuctionId(), e);
 
-        sendToDLQ(event, qt);
-
-        ackMessage(channel, message);
+        try {
+          sendToDLQWithConfirm(event, qt);
+          ackMessage(channel, message);  // DLQ 전송 성공 시에만 ACK
+        } catch (Exception dlqEx) {
+          log.error("[RabbitMQ] DLQ 전송 실패 - Retry 경로로 재이동: auctionId={}",
+              event.getAuctionId(), dlqEx);
+          nackMessage(channel, message, false); // DLX→RetryQueue(TTL)
+        }
         return;
       }
       log.warn("[RabbitMQ] {} 시스템 예외 발생: auctionId={}, retryCount={}", eventType,
@@ -135,15 +147,6 @@ public class AuctionEventProcessor {
     return 0;
   }
 
-  // DLQ 전송: 재시도 한도 초과 메시지를 DLX로 발행하여 DLQ에 적재
-  private void sendToDLQ(AuctionEvent event, QueueType queueType) {
-    String rk = switch (queueType) {
-      case START -> AuctionRabbitMqConfig.AUCTION_START_DLQ_KEY;
-      case END -> AuctionRabbitMqConfig.AUCTION_END_DLQ_KEY;
-    };
-    rabbitTemplate.convertAndSend(AuctionRabbitMqConfig.AUCTION_DLX, rk, event);
-  }
-
   /**
    * 메시지를 정상 처리(또는 재시도 불가로 판단)하여 소비를 확정(ACK)한다.
    *
@@ -172,6 +175,32 @@ public class AuctionEventProcessor {
       channel.basicNack(message.getMessageProperties().getDeliveryTag(), false, requeue);
     } catch (IOException ioEx) {
       log.error("[RabbitMQ] NACK 처리 실패", ioEx);
+    }
+  }
+
+  // DLQ 전송 + confirm(그리고 return 여부)까지 확인
+  private void sendToDLQWithConfirm(AuctionEvent event, QueueType queueType) throws Exception {
+    String rk = switch (queueType) {
+      case START -> AuctionRabbitMqConfig.AUCTION_START_DLQ_KEY;
+      case END -> AuctionRabbitMqConfig.AUCTION_END_DLQ_KEY;
+    };
+
+    String corrId = event.getAuctionId() + "-" + UUID.randomUUID();
+    CorrelationData cd = new CorrelationData(corrId);
+
+    rabbitTemplate.convertAndSend(AuctionRabbitMqConfig.AUCTION_DLX, rk, event, msg -> {
+      msg.getMessageProperties().setCorrelationId(corrId);
+      return msg;
+    }, cd);
+
+    CorrelationData.Confirm confirm = cd.getFuture().get(2, TimeUnit.SECONDS);
+
+    if (!confirm.isAck()) {
+      throw new IllegalStateException("DLQ publish NOT-ACK. reason=" + confirm.getReason());
+    }
+
+    if (dlqPublishTracker.getReturnedCorrelationIds().remove(corrId)) {
+      throw new IllegalStateException("DLQ publish returned (unroutable). corrId=" + corrId);
     }
   }
 
