@@ -44,6 +44,8 @@ spring:
     publisher-returns: true
     template:
       mandatory: true
+    dlq:
+      confirm-timeout-ms: 2000
 
     listener:
       simple:

@@ -66,7 +66,7 @@ public class AuctionRabbitMqConfig {
     rabbitTemplate.setReturnsCallback(returned -> {
       String corrId = returned.getMessage().getMessageProperties().getCorrelationId();
       if (corrId != null) {
-        dlqPublishTracker.getReturnedCorrelationIds().add(corrId);
+        dlqPublishTracker.markAsReturned(corrId);
       }
     });
 

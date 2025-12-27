@@ -4,6 +4,7 @@ import com.rabbitmq.client.Channel;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Value;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,9 @@ public class AuctionEventProcessor {
   private final DlqPublishTracker dlqPublishTracker;
   @Qualifier("auctionRabbitTemplate")
   private final RabbitTemplate rabbitTemplate;
+
+  @Value("${rabbitmq.dlq.confirm-timeout-ms}")
+  private long confirmTimeoutMs;
 
   private QueueType parseQueueType(String queueType) {
     try {
@@ -193,13 +197,13 @@ public class AuctionEventProcessor {
       return msg;
     }, cd);
 
-    CorrelationData.Confirm confirm = cd.getFuture().get(2, TimeUnit.SECONDS);
+    CorrelationData.Confirm confirm = cd.getFuture().get(confirmTimeoutMs, TimeUnit.MILLISECONDS);
 
     if (!confirm.isAck()) {
       throw new IllegalStateException("DLQ publish NOT-ACK. reason=" + confirm.getReason());
     }
 
-    if (dlqPublishTracker.getReturnedCorrelationIds().remove(corrId)) {
+    if (dlqPublishTracker.isReturned(corrId)) {
       throw new IllegalStateException("DLQ publish returned (unroutable). corrId=" + corrId);
     }
   }
