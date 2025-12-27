@@ -3,9 +3,9 @@ spring:
     import:
       - "aws-parameterstore:/config/dev/"
   datasource:
-    url: jdbc:mysql://${db.host}:${db.port:3306}/${db.name}?useSSL=false&characterEncoding=UTF-8&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
-    username: ${db.username}
-    password: ${db.password}
+    url: jdbc:mysql://localhost:3306/${db_name}?useSSL=false&characterEncoding=UTF-8
+    username: ${db_username}
+    password: ${db_password}
     driver-class-name: com.mysql.cj.jdbc.Driver
   cloud:
     aws:
@@ -16,8 +16,10 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+    show-sql: true
     properties:
       hibernate:
+        format_sql: true
         dialect: org.hibernate.dialect.MySQLDialect
   mail:
     username: ${EMAIL}
@@ -35,9 +37,13 @@ spring:
       writetimeout: 5s       # 쓰기 타임아웃 (5초)
   rabbitmq:
     host: rabbitmq-dev
-    port: 5672
-    username: guest
-    password: guest
+    port: ${mq_port}
+    username: ${mq_username}
+    password: ${mq_passrod}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
 
     listener:
       simple:
@@ -46,7 +52,7 @@ spring:
   data:
     redis:
       host: redis-dev
-      port: 6379
+      port: ${redis_port}
 
   cache:
     type: redis
