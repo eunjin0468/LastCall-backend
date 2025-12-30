@@ -39,7 +39,7 @@ spring:
     host: rabbitmq-dev
     port: ${mq_port}
     username: ${mq_username}
-    password: ${mq_passrod}
+    password: ${mq_password}
     publisher-confirm-type: correlated
     publisher-returns: true
     template:
