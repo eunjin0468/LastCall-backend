@@ -1,6 +1,5 @@
 package org.example.lastcall.common.config;
 
-import org.example.lastcall.domain.auction.service.event.DlqPublishTracker;
 import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -56,19 +55,14 @@ public class AuctionRabbitMqConfig {
   /**
    * Auction 도메인 이벤트 발행용 RabbitTemplate
    * {@link #messageConverter()}를 적용해 객체를 JSON으로 변환하여 전송한다.
+   * <p>
+   * mandatory=true 설정으로 라우팅 실패 시 CorrelationData.getReturned()를 통해 반환 정보를 확인할 수 있다.
    */
   @Bean(name = "auctionRabbitTemplate")
-  public RabbitTemplate auctionRabbitTemplate(ConnectionFactory connectionFactory, DlqPublishTracker dlqPublishTracker) {
+  public RabbitTemplate auctionRabbitTemplate(ConnectionFactory connectionFactory) {
     RabbitTemplate rabbitTemplate = new RabbitTemplate(connectionFactory);
     rabbitTemplate.setMessageConverter(messageConverter());
-
     rabbitTemplate.setMandatory(true);
-    rabbitTemplate.setReturnsCallback(returned -> {
-      String corrId = returned.getMessage().getMessageProperties().getCorrelationId();
-      if (corrId != null) {
-        dlqPublishTracker.markAsReturned(corrId);
-      }
-    });
 
     return rabbitTemplate;
   }

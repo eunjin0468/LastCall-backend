@@ -3,11 +3,13 @@ package org.example.lastcall.domain.auction.service.event;
 import lombok.RequiredArgsConstructor;
 import org.example.lastcall.common.config.AuctionRabbitMqConfig;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
 public class AuctionEventPublisher {
+    @Qualifier("auctionRabbitTemplate")
     private final RabbitTemplate rabbitTemplate;
 
     // 경매 시작 이벤트를 큐로 발행하는 메서드

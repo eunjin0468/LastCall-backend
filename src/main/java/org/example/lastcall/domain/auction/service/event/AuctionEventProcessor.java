@@ -15,6 +15,7 @@ import org.example.lastcall.domain.auction.entity.Auction;
 import org.example.lastcall.domain.auction.exception.AuctionErrorCode;
 import org.example.lastcall.domain.auction.repository.AuctionRepository;
 import org.springframework.amqp.core.Message;
+import org.springframework.amqp.core.ReturnedMessage;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -27,7 +28,6 @@ public class AuctionEventProcessor {
 
   public static final int MAX_RETRY_COUNT = 3;
   private final AuctionRepository auctionRepository;
-  private final DlqPublishTracker dlqPublishTracker;
   @Qualifier("auctionRabbitTemplate")
   private final RabbitTemplate rabbitTemplate;
 
@@ -203,8 +203,12 @@ public class AuctionEventProcessor {
       throw new IllegalStateException("DLQ publish NOT-ACK. reason=" + confirm.getReason());
     }
 
-    if (dlqPublishTracker.isReturned(corrId)) {
-      throw new IllegalStateException("DLQ publish returned (unroutable). corrId=" + corrId);
+    // CorrelationData.getReturned()를 사용하여 메시지 반환 여부 확인
+    ReturnedMessage returned = cd.getReturned();
+    if (returned != null) {
+      throw new IllegalStateException("DLQ 발행 실패: 라우팅 불가 (unroutable). corrId=" + corrId
+          + ", replyCode=" + returned.getReplyCode()
+          + ", replyText=" + returned.getReplyText());
     }
   }
 
