@@ -33,6 +33,10 @@ public class AuctionRabbitMqConfig {
 
   public static final long AUCTION_RETRY_TTL_MS = 5000L;
 
+  // DLQ 용량 제한 설정
+  public static final int DLQ_MAX_LENGTH = 10000;           // 최대 1만개 메시지
+  public static final long DLQ_TTL_MS = 30L * 24 * 60 * 60 * 1000;        // 30일 (밀리초)
+
   /**
    * Delayed Exchange(type: x-delayed-message)
    * 메시지 헤더의 {@code x-delay(ms)} 값을 이용해 발행 시점을 지연한다.
@@ -159,21 +163,44 @@ public class AuctionRabbitMqConfig {
         .with(AUCTION_END_RETRY_KEY);
   }
 
-  // DLQ Queue: 최종 실패 메시지 보관
+  /**
+   * 경매 시작 이벤트 DLQ: 최종 실패 메시지 보관
+   *
+   * 용량 제한 설정:
+   * - x-max-length: 최대 1만개 메시지 저장
+   * - x-message-ttl: 30일 후 자동 삭제
+   * - x-overflow: drop-head (큐가 가득 차면 가장 오래된 메시지부터 삭제)
+   */
   @Bean
-  public Queue auctionStartDLQ() {
-    return QueueBuilder.durable(AUCTION_START_DLQ).build();
+  public Queue auctionStartDlq() {
+    return createDlq(AUCTION_START_DLQ);
   }
 
+  /**
+   * 경매 종료 이벤트 DLQ: 최종 실패 메시지 보관
+   *
+   * 용량 제한 설정:
+   * - x-max-length: 최대 1만개 메시지 저장
+   * - x-message-ttl: 30일 후 자동 삭제
+   * - x-overflow: drop-head (큐가 가득 차면 가장 오래된 메시지부터 삭제)
+   */
   @Bean
-  public Queue auctionEndDLQ() {
-    return QueueBuilder.durable(AUCTION_END_DLQ).build();
+  public Queue auctionEndDlq() {
+    return createDlq(AUCTION_END_DLQ);
+  }
+
+  private Queue createDlq(String queueName){
+    return QueueBuilder.durable(queueName)
+        .withArgument("x-max-length", DLQ_MAX_LENGTH)
+        .withArgument("x-message-ttl", DLQ_TTL_MS)
+        .withArgument("x-overflow", "drop-head")
+        .build();
   }
 
   // DLQ Binding: DLX에 바인딩하여 DLQ 라우팅 키로 들어오는 메시지를 수신
   @Bean
   public Binding auctionStartDLQBinding(
-      @Qualifier("auctionStartDLQ") Queue auctionStartDLQ, DirectExchange auctionDLX) {
+      @Qualifier("auctionStartDlq") Queue auctionStartDLQ, DirectExchange auctionDLX) {
     return BindingBuilder
         .bind(auctionStartDLQ)
         .to(auctionDLX)
@@ -182,7 +209,7 @@ public class AuctionRabbitMqConfig {
 
   @Bean
   public Binding auctionEndDLQBinding(
-      @Qualifier("auctionEndDLQ") Queue auctionEndDLQ, DirectExchange auctionDLX) {
+      @Qualifier("auctionEndDlq") Queue auctionEndDLQ, DirectExchange auctionDLX) {
     return BindingBuilder
         .bind(auctionEndDLQ)
         .to(auctionDLX)
