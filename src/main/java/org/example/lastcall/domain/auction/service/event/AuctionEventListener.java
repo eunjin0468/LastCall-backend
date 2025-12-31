@@ -14,6 +14,7 @@ import org.example.lastcall.domain.auction.entity.FailedEvent;
 import org.example.lastcall.domain.auction.enums.AuctionEventType;
 import org.example.lastcall.domain.auction.repository.FailedEventRepository;
 import org.example.lastcall.domain.auction.service.command.AuctionCommandService;
+import org.example.lastcall.domain.auction.service.notification.SlackAlertService;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Service;
@@ -45,7 +46,7 @@ public class AuctionEventListener {
   /**
    * 경매 시작 DLQ 메시지 처리
    *
-   * 최대 재시도 횟수를 초과한 경매 시작 이벤트를 처리합니다.
+   * 최대 재시도 횟수를 초과한 경매 시작 이벤트를 처리
    * - 에러 로그 기록
    * - DB에 실패 이벤트 저장
    * - 메시지 ACK 처리 (DLQ에서 제거)
