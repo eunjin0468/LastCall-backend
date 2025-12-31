@@ -28,6 +28,7 @@ import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.example.lastcall.domain.auction.enums.AuctionEventType.START;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
 
@@ -70,7 +71,7 @@ public class AuctionEventProcessorTest {
         given(auctionRepository.findById(auctionId)).willReturn(Optional.of(auction));
 
         // when
-        auctionEventProcessor.processEvent(event, message, channel, auctionHandler, "경매 시작", "START");
+        auctionEventProcessor.processEvent(event, message, channel, auctionHandler, "경매 시작", START);
 
         // then
         then(auctionHandler).should().accept(auctionId);
@@ -94,7 +95,7 @@ public class AuctionEventProcessorTest {
         given(auctionRepository.findById(auctionId)).willReturn(Optional.of(auction));
 
         // when
-        auctionEventProcessor.processEvent(event, message, channel, auctionHandler, "경매 시작", "START");
+        auctionEventProcessor.processEvent(event, message, channel, auctionHandler, "경매 시작", START);
 
         // then
         then(auctionHandler).should(never()).accept(anyLong());
@@ -118,7 +119,7 @@ public class AuctionEventProcessorTest {
                 .given(auctionHandler).accept(auctionId);
 
         // when
-        auctionEventProcessor.processEvent(event, message, channel, auctionHandler, "경매 시작", "START");
+        auctionEventProcessor.processEvent(event, message, channel, auctionHandler, "경매 시작", START);
 
         // then
         then(channel).should().basicAck(1L, false);
@@ -150,7 +151,7 @@ public class AuctionEventProcessorTest {
                 .given(auctionHandler).accept(auctionId);
 
         // when
-        auctionEventProcessor.processEvent(event, message, channel, auctionHandler, "경매 시작", "START");
+        auctionEventProcessor.processEvent(event, message, channel, auctionHandler, "경매 시작", START);
 
         // then
         then(channel).should().basicNack(1L, false, false);
@@ -198,7 +199,7 @@ public class AuctionEventProcessorTest {
                 .given(auctionHandler).accept(anyLong());
 
         // when
-        auctionEventProcessor.processEvent(event, message, channel, auctionHandler, "경매 시작", "START");
+        auctionEventProcessor.processEvent(event, message, channel, auctionHandler, "경매 시작", START);
 
         // then
         then(rabbitTemplate).should().convertAndSend(
@@ -334,7 +335,7 @@ public class AuctionEventProcessorTest {
                 .given(auctionHandler).accept(auctionId);
 
         // when
-        auctionEventProcessor.processEvent(event, message, channel, auctionHandler, "경매 시작", "START");
+        auctionEventProcessor.processEvent(event, message, channel, auctionHandler, "경매 시작", START);
 
         // then
         then(channel).should().basicNack(1L, false, false);
@@ -378,7 +379,7 @@ public class AuctionEventProcessorTest {
         willThrow(new IOException("ACK 실패")).given(channel).basicAck(anyLong(), anyBoolean());
 
         // when
-        auctionEventProcessor.processEvent(event, message, channel, auctionHandler, "경매 시작", "START");
+        auctionEventProcessor.processEvent(event, message, channel, auctionHandler, "경매 시작", START);
 
         // then
         then(auctionHandler).should().accept(auctionId);
@@ -406,7 +407,7 @@ public class AuctionEventProcessorTest {
                 .given(channel).basicNack(anyLong(), anyBoolean(), anyBoolean());
 
         // when
-        auctionEventProcessor.processEvent(event, message, channel, auctionHandler, "경매 시작", "START");
+        auctionEventProcessor.processEvent(event, message, channel, auctionHandler, "경매 시작", START);
 
         // then
         then(channel).should().basicNack(1L, false, false);
@@ -425,7 +426,7 @@ public class AuctionEventProcessorTest {
         given(auctionRepository.findById(auctionId)).willReturn(Optional.empty());
 
         // when
-        auctionEventProcessor.processEvent(event, message, channel, auctionHandler, "경매 시작", "START");
+        auctionEventProcessor.processEvent(event, message, channel, auctionHandler, "경매 시작", START);
 
         // then
         then(auctionHandler).should(never()).accept(anyLong());
