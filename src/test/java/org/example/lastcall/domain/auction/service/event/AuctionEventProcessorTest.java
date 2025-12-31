@@ -152,7 +152,7 @@ public class AuctionEventProcessorTest {
         // then
         then(channel).should().basicNack(1L, false, false);
         then(channel).should(never()).basicAck(anyLong(), anyBoolean());
-        then(rabbitTemplate).should(never()).convertAndSend(anyString(), anyString(), any());
+        then(rabbitTemplate).should(never()).convertAndSend(anyString(), anyString(), any(), any(), any());
     }
 
     @Test
