@@ -41,4 +41,12 @@ public interface FailedEventRepository extends JpaRepository<FailedEvent, Long> 
      */
     @Query("SELECT f FROM FailedEvent f ORDER BY f.createdAt DESC")
     Page<FailedEvent> findRecentFailedEvents(Pageable pageable);
+
+    /**
+     * 미처리 실패 이벤트 조회 (자동 보정 대상)
+     * - processed = false
+     * - correctionAttempts < 3
+     */
+    @Query("SELECT f FROM FailedEvent f WHERE f.processed = false AND f.correctionAttempts < 3 ORDER BY f.createdAt ASC")
+    List<FailedEvent> findUnprocessedForCorrection();
 }

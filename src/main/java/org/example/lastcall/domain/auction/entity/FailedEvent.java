@@ -20,7 +20,8 @@ import org.example.lastcall.domain.auction.enums.AuctionEventType;
 @Table(name = "failed_events", indexes = {
     @Index(name = "idx_failed_event_auction_id", columnList = "auction_id"),
     @Index(name = "idx_failed_event_type", columnList = "event_type"),
-    @Index(name = "idx_failed_event_created_at", columnList = "created_at DESC")
+    @Index(name = "idx_failed_event_created_at", columnList = "created_at DESC"),
+    @Index(name = "idx_failed_event_processed", columnList = "processed")
 })
 public class FailedEvent extends BaseEntity {
 
@@ -56,6 +57,12 @@ public class FailedEvent extends BaseEntity {
     @Column(name = "correlation_id", length = 255)
     private String correlationId; // DLQ 전송 시 correlation ID
 
+    @Column(name = "processed", nullable = false)
+    private Boolean processed = false; // 보정 완료 여부
+
+    @Column(name = "correction_attempts", nullable = false)
+    private Integer correctionAttempts = 0; // 자동 보정 시도 횟수
+
     /**
      * 빌더 패턴을 위한 생성자
      * id는 @GeneratedValue로 자동 생성되므로 생성자 파라미터에서 제외
@@ -81,5 +88,21 @@ public class FailedEvent extends BaseEntity {
         this.retryCount = retryCount;
         this.rabbitMessageId = rabbitMessageId;
         this.correlationId = correlationId;
+        this.processed = false;
+        this.correctionAttempts = 0;
+    }
+
+    /**
+     * 보정 완료 처리
+     */
+    public void markAsProcessed() {
+        this.processed = true;
+    }
+
+    /**
+     * 보정 시도 횟수 증가
+     */
+    public void incrementCorrectionAttempts() {
+        this.correctionAttempts++;
     }
 }
