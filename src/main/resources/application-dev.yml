@@ -3,7 +3,7 @@ spring:
     import:
       - "aws-parameterstore:/config/dev/"
   datasource:
-    url: jdbc:mysql://localhost:3306/${db_name}?useSSL=false&characterEncoding=UTF-8
+    url: jdbc:mysql://localhost:3306/${db_name}?serverTimezone=Asia/Seoul&characterEncoding=utf8
     username: ${db_username}
     password: ${db_password}
     driver-class-name: com.mysql.cj.jdbc.Driver
