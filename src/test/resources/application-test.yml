@@ -40,6 +40,10 @@ rabbitmq:
   dlq:
     confirm-timeout-ms: 5000
 
+slack:
+  webhook:
+    dlq-alert: https://hooks.slack.com/services/TEST/TEST/TEST  # 테스트용 더미 URL
+
 logging:
   level:
     org.hibernate.SQL: info
