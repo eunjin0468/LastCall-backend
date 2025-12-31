@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.lastcall.common.config.AuctionRabbitMqConfig;
 import org.example.lastcall.common.exception.BusinessException;
 import org.example.lastcall.domain.auction.entity.Auction;
+import org.example.lastcall.domain.auction.enums.AuctionEventType;
 import org.example.lastcall.domain.auction.exception.AuctionErrorCode;
 import org.example.lastcall.domain.auction.repository.AuctionRepository;
 import org.springframework.amqp.core.Message;
@@ -34,14 +35,6 @@ public class AuctionEventProcessor {
   @Value("${rabbitmq.dlq.confirm-timeout-ms}")
   private long confirmTimeoutMs;
 
-  private QueueType parseQueueType(String queueType) {
-    try {
-      return QueueType.valueOf(queueType);
-    } catch (Exception e) {
-      throw new IllegalArgumentException("Unsupported queueType: " + queueType, e);
-    }
-  }
-
   /**
    * 경매 이벤트 메시지 공통 처리 로직
    *
@@ -53,17 +46,7 @@ public class AuctionEventProcessor {
    * @param queueType      START/END 구분(재시도 카운팅 및 DLQ 라우팅에 사용)
    */
   public void processEvent(AuctionEvent event, Message message, Channel channel,
-      Consumer<Long> auctionHandler, String eventType, String queueType) {
-    final QueueType qt;
-    try {
-      qt = parseQueueType(queueType);
-    } catch (IllegalArgumentException e) {
-      log.error("[RabbitMQ] 지원하지 않는 queueType: queueType={}, eventType={}, auctionId={}",
-          queueType, eventType, event.getAuctionId(), e);
-      ackMessage(channel, message);
-      throw e;
-    }
-
+      Consumer<Long> auctionHandler, String eventType, AuctionEventType queueType) {
     try{
     log.debug("[RabbitMQ] {} 이벤트 수신: {}", eventType, event);
 
@@ -87,23 +70,17 @@ public class AuctionEventProcessor {
       log.warn("[RabbitMQ] {} 비즈니스 예외 발생: auctionId={}, message={}", eventType,
           event.getAuctionId(), e.getMessage());
       ackMessage(channel, message);
-    } catch (IllegalArgumentException e) {
-      log.error("[RabbitMQ] 지원하지 않는 queueType: queueType={}, eventType={}, auctionId={}", queueType,
-          eventType, event.getAuctionId(), e);
-      // 프로그래밍 오류로 보고 fail-fast 하되, 메시지 무한 재전송을 방지하기 위해 ACK 처리
-      ackMessage(channel, message);
-      throw e;
     } catch (Exception e) {
       log.error("[RabbitMQ] {} 처리 중 시스템 예외 발생: auctionId={}", eventType, event.getAuctionId(), e);
 
-      int retryCount = getRetryCount(message, qt);
+      int retryCount = getRetryCount(message, queueType);
 
       if (retryCount >= MAX_RETRY_COUNT) {
         log.error("[RabbitMQ] {} 시스템 예외 {}회 초과 - DLQ 전송 시도: auctionId={}",
             eventType, MAX_RETRY_COUNT, event.getAuctionId(), e);
 
         try {
-          sendToDLQWithConfirm(event, qt);
+          sendToDLQWithConfirm(event, queueType);
           ackMessage(channel, message);  // DLQ 전송 성공 시에만 ACK
         } catch (Exception dlqEx) {
           log.error("[RabbitMQ] DLQ 전송 실패 - Retry 경로로 재이동: auctionId={}",
@@ -125,7 +102,7 @@ public class AuctionEventProcessor {
    *
    * x-death는 여러 큐/사유의 기록이 누적될 수 있으므로, Retry 큐의 TTL 만료(expired) 기록이 아닌원본 큐(START/END)기준으로 count를 선택한다.
    */
-  private int getRetryCount(Message message, QueueType queueType) {
+  private int getRetryCount(Message message, AuctionEventType queueType) {
     String originQueue = switch (queueType) {
       case START -> AuctionRabbitMqConfig.AUCTION_START_QUEUE;
       case END -> AuctionRabbitMqConfig.AUCTION_END_QUEUE;
@@ -183,7 +160,7 @@ public class AuctionEventProcessor {
   }
 
   // DLQ 전송 + confirm(그리고 return 여부)까지 확인
-  private void sendToDLQWithConfirm(AuctionEvent event, QueueType queueType) throws Exception {
+  private void sendToDLQWithConfirm(AuctionEvent event, AuctionEventType queueType) throws Exception {
     String rk = switch (queueType) {
       case START -> AuctionRabbitMqConfig.AUCTION_START_DLQ_KEY;
       case END -> AuctionRabbitMqConfig.AUCTION_END_DLQ_KEY;
@@ -208,10 +185,5 @@ public class AuctionEventProcessor {
     if (cd.getReturned() != null) {
       throw new IllegalStateException("DLQ publish returned (unroutable). corrId=" + corrId + ", returned: " + cd.getReturned());
     }
-  }
-
-  private enum QueueType {
-    START,
-    END
   }
 }

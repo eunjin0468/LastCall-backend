@@ -1,6 +1,7 @@
 package org.example.lastcall.domain.auction.repository;
 
 import org.example.lastcall.domain.auction.entity.FailedEvent;
+import org.example.lastcall.domain.auction.enums.AuctionEventType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -33,7 +34,7 @@ public interface FailedEventRepository extends JpaRepository<FailedEvent, Long> 
     /**
      * 이벤트 타입별 실패 이벤트 조회 (페이징)
      */
-    Page<FailedEvent> findByEventTypeOrderByCreatedAtDesc(String eventType, Pageable pageable);
+    Page<FailedEvent> findByEventTypeOrderByCreatedAtDesc(AuctionEventType eventType, Pageable pageable);
 
     /**
      * 최근 실패 이벤트 조회

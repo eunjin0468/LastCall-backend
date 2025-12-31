@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.lastcall.common.config.AuctionRabbitMqConfig;
 import org.example.lastcall.domain.auction.entity.FailedEvent;
+import org.example.lastcall.domain.auction.enums.AuctionEventType;
 import org.example.lastcall.domain.auction.repository.FailedEventRepository;
 import org.example.lastcall.domain.auction.service.command.AuctionCommandService;
 import org.springframework.amqp.core.Message;
@@ -31,14 +32,14 @@ public class AuctionEventListener {
   @RabbitListener(queues = AuctionRabbitMqConfig.AUCTION_START_QUEUE)
   public void handleAuctionStart(AuctionEvent event, Message message, Channel channel) {
     auctionEventConsumer.processEvent(event, message, channel, auctionCommandService::startAuction,
-        "[RabbitMQ] 경매 시작", "START");
+        "[RabbitMQ] 경매 시작", AuctionEventType.START);
   }
 
   // 경매 종료 이벤트 처리 메서드
   @RabbitListener(queues = AuctionRabbitMqConfig.AUCTION_END_QUEUE)
   public void handleAuctionEnd(AuctionEvent event, Message message, Channel channel) {
     auctionEventConsumer.processEvent(event, message, channel, auctionCommandService::closeAuction,
-        "[RabbitMQ] 경매 종료", "END");
+        "[RabbitMQ] 경매 종료", AuctionEventType.END);
   }
 
   /**
@@ -51,7 +52,7 @@ public class AuctionEventListener {
    */
   @RabbitListener(queues = AuctionRabbitMqConfig.AUCTION_START_DLQ)
   public void handleAuctionStartDLQ(AuctionEvent event, Message message, Channel channel) {
-    processDLQMessage(event, message, channel, "START");
+    processDLQMessage(event, message, channel, AuctionEventType.START);
   }
 
   /**
@@ -64,13 +65,13 @@ public class AuctionEventListener {
    */
   @RabbitListener(queues = AuctionRabbitMqConfig.AUCTION_END_DLQ)
   public void handleAuctionEndDLQ(AuctionEvent event, Message message, Channel channel) {
-    processDLQMessage(event, message, channel, "END");
+    processDLQMessage(event, message, channel, AuctionEventType.END);
   }
 
   /**
    * DLQ 메시지 공통 처리 로직
    */
-  private void processDLQMessage(AuctionEvent event, Message message, Channel channel, String eventType) {
+  private void processDLQMessage(AuctionEvent event, Message message, Channel channel, AuctionEventType eventType) {
     try {
       // 1. 에러 로그 기록
       log.error("[DLQ] {} 이벤트 최종 실패: auctionId={}, version={}, headers={}",
@@ -103,7 +104,7 @@ public class AuctionEventListener {
   /**
    * FailedEvent 엔티티 생성
    */
-  private FailedEvent createFailedEvent(AuctionEvent event, Message message, String eventType) {
+  private FailedEvent createFailedEvent(AuctionEvent event, Message message, AuctionEventType eventType) {
     try {
       String eventPayload = objectMapper.writeValueAsString(event);
       String errorMessage = extractErrorMessage(message);
@@ -177,10 +178,11 @@ public class AuctionEventListener {
   /**
    * 재시도 횟수 추출
    */
-  private Integer extractRetryCount(Message message, String eventType) {
-    String originQueue = eventType.equals("START")
-        ? AuctionRabbitMqConfig.AUCTION_START_QUEUE
-        : AuctionRabbitMqConfig.AUCTION_END_QUEUE;
+  private Integer extractRetryCount(Message message, AuctionEventType eventType) {
+    String originQueue = switch (eventType) {
+      case START -> AuctionRabbitMqConfig.AUCTION_START_QUEUE;
+      case END -> AuctionRabbitMqConfig.AUCTION_END_QUEUE;
+    };
 
     Map<String, Object> headers = message.getMessageProperties().getHeaders();
     Object xDeathHeader = headers.get("x-death");

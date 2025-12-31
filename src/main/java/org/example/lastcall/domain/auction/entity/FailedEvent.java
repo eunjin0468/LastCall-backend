@@ -5,6 +5,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.example.lastcall.common.entity.BaseEntity;
+import org.example.lastcall.domain.auction.enums.AuctionEventType;
 
 /**
  * DLQ(Dead Letter Queue)에 저장된 실패 이벤트를 DB에 기록하는 엔티티
@@ -29,8 +30,9 @@ public class FailedEvent extends BaseEntity {
     @Column(name = "auction_id", nullable = false)
     private Long auctionId;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "event_type", nullable = false, length = 20)
-    private String eventType; // "START" 또는 "END"
+    private AuctionEventType eventType;
 
     @Column(name = "event_version", nullable = false)
     private Long eventVersion;
@@ -69,7 +71,7 @@ public class FailedEvent extends BaseEntity {
      */
     public static FailedEvent of(
         Long auctionId,
-        String eventType,
+        AuctionEventType eventType,
         Long eventVersion,
         String eventPayload,
         String errorMessage,
