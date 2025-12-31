@@ -28,6 +28,8 @@ import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.example.lastcall.domain.auction.enums.AuctionEventType.END;
+import static org.example.lastcall.domain.auction.enums.AuctionEventType.INVALID;
 import static org.example.lastcall.domain.auction.enums.AuctionEventType.START;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
@@ -251,7 +253,7 @@ public class AuctionEventProcessorTest {
                 .given(auctionHandler).accept(anyLong());
 
         // when
-        auctionEventProcessor.processEvent(event, message, channel, auctionHandler, "경매 시작", "START");
+        auctionEventProcessor.processEvent(event, message, channel, auctionHandler, "경매 시작", START);
 
         // then
         ArgumentCaptor<String> routingKeyCaptor = ArgumentCaptor.forClass(String.class);
@@ -302,7 +304,7 @@ public class AuctionEventProcessorTest {
                 .given(auctionHandler).accept(anyLong());
 
         // when
-        auctionEventProcessor.processEvent(event, message, channel, auctionHandler, "경매 종료", "END");
+        auctionEventProcessor.processEvent(event, message, channel, auctionHandler, "경매 종료", END);
 
         // then
         ArgumentCaptor<String> routingKeyCaptor = ArgumentCaptor.forClass(String.class);
@@ -355,7 +357,7 @@ public class AuctionEventProcessorTest {
 
         // when & then
         assertThatThrownBy(() ->
-                auctionEventProcessor.processEvent(event, message, channel, auctionHandler, "경매", "INVALID")
+                auctionEventProcessor.processEvent(event, message, channel, auctionHandler, "경매", INVALID)
         ).isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unsupported queueType");
 
