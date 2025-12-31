@@ -142,6 +142,7 @@ public class SlackAlertService {
     if (text.length() <= maxLength) {
       return text;
     }
-    return text.substring(0, maxLength) + "... (truncated)";
+    int endIndex = text.offsetByCodePoints(0, maxLength);
+    return text.substring(0, endIndex) + "... (truncated)";
   }
 }
