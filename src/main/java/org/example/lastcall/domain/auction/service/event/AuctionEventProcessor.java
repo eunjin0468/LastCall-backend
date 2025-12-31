@@ -73,27 +73,33 @@ public class AuctionEventProcessor {
     } catch (Exception e) {
       log.error("[RabbitMQ] {} 처리 중 시스템 예외 발생: auctionId={}", eventType, event.getAuctionId(), e);
 
-      int retryCount = getRetryCount(message, queueType);
+      try {
+        int retryCount = getRetryCount(message, queueType);
 
-      if (retryCount >= MAX_RETRY_COUNT) {
-        log.error("[RabbitMQ] {} 시스템 예외 {}회 초과 - DLQ 전송 시도: auctionId={}",
-            eventType, MAX_RETRY_COUNT, event.getAuctionId(), e);
+        if (retryCount >= MAX_RETRY_COUNT) {
+          log.error("[RabbitMQ] {} 시스템 예외 {}회 초과 - DLQ 전송 시도: auctionId={}",
+              eventType, MAX_RETRY_COUNT, event.getAuctionId(), e);
 
-        try {
-          sendToDLQWithConfirm(event, queueType);
-          ackMessage(channel, message);  // DLQ 전송 성공 시에만 ACK
-        } catch (Exception dlqEx) {
-          log.error("[RabbitMQ] DLQ 전송 실패 - Retry 경로로 재이동: auctionId={}",
-              event.getAuctionId(), dlqEx);
-          nackMessage(channel, message, false); // DLX→RetryQueue(TTL)
+          try {
+            sendToDLQWithConfirm(event, queueType);
+            ackMessage(channel, message);  // DLQ 전송 성공 시에만 ACK
+          } catch (Exception dlqEx) {
+            log.error("[RabbitMQ] DLQ 전송 실패 - Retry 경로로 재이동: auctionId={}",
+                event.getAuctionId(), dlqEx);
+            nackMessage(channel, message, false); // DLX→RetryQueue(TTL)
+          }
+          return;
         }
-        return;
-      }
-      log.warn("[RabbitMQ] {} 시스템 예외 발생: auctionId={}, retryCount={}", eventType,
-          event.getAuctionId(), retryCount, e);
+        log.warn("[RabbitMQ] {} 시스템 예외 발생: auctionId={}, retryCount={}", eventType,
+            event.getAuctionId(), retryCount, e);
 
-      // 시스템 예외: NACK(requeue=false)로 거절하여 DLX → Retry Queue(TTL)로 이동
-      nackMessage(channel, message, false);
+        // 시스템 예외: NACK(requeue=false)로 거절하여 DLX → Retry Queue(TTL)로 이동
+        nackMessage(channel, message, false);
+      } catch (IllegalArgumentException illegalArgEx) {
+        // 잘못된 queueType은 프로그래밍 오류이므로 ACK하여 재처리 방지
+        log.error("[RabbitMQ] 잘못된 queueType: {}, auctionId={} - ACK 처리", queueType, event.getAuctionId(), illegalArgEx);
+        ackMessage(channel, message);
+      }
     }
   }
 
