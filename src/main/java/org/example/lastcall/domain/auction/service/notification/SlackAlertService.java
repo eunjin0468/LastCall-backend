@@ -94,11 +94,11 @@ public class SlackAlertService {
     return Map.of(
         "type", "section",
         "fields", List.of(
-            Map.of("type", "mrkdwn", "text", "*경매 ID:*\n`" + event.getAuctionId() + "`"),
-            Map.of("type", "mrkdwn", "text", "*이벤트 타입:*\n`" + event.getEventType() + "`"),
-            Map.of("type", "mrkdwn", "text", "*재시도 횟수:*\n`" + event.getRetryCount() + "회`"),
-            Map.of("type", "mrkdwn", "text", "*실패 시각:*\n`" + event.getCreatedAt().format(FORMATTER) + "`")
-        )
+            Map.of("type", "mrkdwn", "text", String.format("*경매 ID:*\n`%d`", event.getAuctionId())),
+            Map.of("type", "mrkdwn", "text", String.format("*이벤트 타입:*\n`%s`", event.getEventType())),
+            Map.of("type", "mrkdwn", "text", String.format("*재시도 횟수:*\n`%d회`", event.getRetryCount())),
+            Map.of("type", "mrkdwn", "text", String.format("*실패 시각:*\n`%s`", event.getCreatedAt().format(FORMATTER)))
+            )
     );
   }
 
