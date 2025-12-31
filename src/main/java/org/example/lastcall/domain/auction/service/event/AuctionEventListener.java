@@ -169,7 +169,7 @@ public class AuctionEventListener {
     Object xException = headers.get("x-exception-stacktrace");
 
     if (xException instanceof byte[] bytes) {
-      return new String(bytes);
+      return new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
     }
 
     return "Stack trace not available";
