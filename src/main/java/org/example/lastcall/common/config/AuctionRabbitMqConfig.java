@@ -35,7 +35,7 @@ public class AuctionRabbitMqConfig {
 
   // DLQ 용량 제한 설정
   public static final int DLQ_MAX_LENGTH = 10000;           // 최대 1만개 메시지
-  public static final long DLQ_TTL_MS = 2592000000L;        // 30일 (밀리초)
+  public static final long DLQ_TTL_MS = 30L * 24 * 60 * 60 * 1000;        // 30일 (밀리초)
 
   /**
    * Delayed Exchange(type: x-delayed-message)
