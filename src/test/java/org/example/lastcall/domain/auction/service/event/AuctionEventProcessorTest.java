@@ -15,12 +15,15 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageProperties;
+import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -157,7 +160,7 @@ public class AuctionEventProcessorTest {
 
     @Test
     @DisplayName("processEvent - 시스템 예외 발생 시 재시도 횟수가 3 이상이면 DLQ로 전송하고 ACK 처리된다")
-    void processEvent_시스템_예외_발생_시_재시도_횟수가_3_이상이면_DLQ로_전송하고_ACK_처리된다() throws IOException {
+    void processEvent_시스템_예외_발생_시_재시도_횟수가_3_이상이면_DLQ로_전송하고_ACK_처리된다() throws Exception {
         // given
         Long auctionId = 1L;
         Long version = 1L;
@@ -176,8 +179,23 @@ public class AuctionEventProcessorTest {
         );
         given(messageProperties.getHeaders()).willReturn(Map.of("x-death", List.of(xDeathEntry)));
 
+        // confirmTimeoutMs 설정
+        ReflectionTestUtils.setField(auctionEventProcessor, "confirmTimeoutMs", 5000L);
+
+        // DLQ 전송 모킹 - ArgumentCaptor로 CorrelationData 캡처
+        ArgumentCaptor<CorrelationData> cdCaptor = ArgumentCaptor.forClass(CorrelationData.class);
+        willAnswer(invocation -> {
+            CorrelationData cd = invocation.getArgument(4, CorrelationData.class);
+            // CorrelationData의 Future를 완료 상태로 설정
+            CorrelationData.Confirm confirm = new CorrelationData.Confirm(true, null);
+            CompletableFuture<CorrelationData.Confirm> future = new CompletableFuture<>();
+            future.complete(confirm);
+            ReflectionTestUtils.setField(cd, "future", future);
+            return null;
+        }).given(rabbitTemplate).convertAndSend(anyString(), anyString(), any(), any(), cdCaptor.capture());
+
         willThrow(new RuntimeException("시스템 예외"))
-                .given(auctionHandler).accept(auctionId);
+                .given(auctionHandler).accept(anyLong());
 
         // when
         auctionEventProcessor.processEvent(event, message, channel, auctionHandler, "경매 시작", "START");
@@ -186,7 +204,10 @@ public class AuctionEventProcessorTest {
         then(rabbitTemplate).should().convertAndSend(
                 eq(AuctionRabbitMqConfig.AUCTION_DLX),
                 eq(AuctionRabbitMqConfig.AUCTION_START_DLQ_KEY),
-                eq(event)
+                eq(event),
+                any(),
+                any()
+
         );
         then(channel).should().basicAck(1L, false);
         then(channel).should(never()).basicNack(anyLong(), anyBoolean(), anyBoolean());
@@ -194,7 +215,7 @@ public class AuctionEventProcessorTest {
 
     @Test
     @DisplayName("processEvent - START 이벤트는 START DLQ 라우팅 키를 사용한다")
-    void processEvent_START_이벤트는_START_DLQ_라우팅_키를_사용한다() throws IOException {
+    void processEvent_START_이벤트는_START_DLQ_라우팅_키를_사용한다() throws Exception {
         // given
         Long auctionId = 1L;
         Long version = 1L;
@@ -212,8 +233,21 @@ public class AuctionEventProcessorTest {
         );
         given(messageProperties.getHeaders()).willReturn(Map.of("x-death", List.of(xDeathEntry)));
 
+        // confirmTimeoutMs 설정
+        ReflectionTestUtils.setField(auctionEventProcessor, "confirmTimeoutMs", 5000L);
+
+        // DLQ 전송 모킹
+        willAnswer(invocation -> {
+            CorrelationData cd = invocation.getArgument(4, CorrelationData.class);
+            CorrelationData.Confirm confirm = new CorrelationData.Confirm(true, null);
+            CompletableFuture<CorrelationData.Confirm> future = new CompletableFuture<>();
+            future.complete(confirm);
+            ReflectionTestUtils.setField(cd, "future", future);
+            return null;
+        }).given(rabbitTemplate).convertAndSend(anyString(), anyString(), any(), any(), any(CorrelationData.class));
+
         willThrow(new RuntimeException("시스템 예외"))
-                .given(auctionHandler).accept(auctionId);
+                .given(auctionHandler).accept(anyLong());
 
         // when
         auctionEventProcessor.processEvent(event, message, channel, auctionHandler, "경매 시작", "START");
@@ -223,14 +257,16 @@ public class AuctionEventProcessorTest {
         then(rabbitTemplate).should().convertAndSend(
                 eq(AuctionRabbitMqConfig.AUCTION_DLX),
                 routingKeyCaptor.capture(),
-                eq(event)
+                eq(event),
+                any(),
+                any()
         );
         assertThat(routingKeyCaptor.getValue()).isEqualTo(AuctionRabbitMqConfig.AUCTION_START_DLQ_KEY);
     }
 
     @Test
     @DisplayName("processEvent - END 이벤트는 END DLQ 라우팅 키를 사용한다")
-    void processEvent_END_이벤트는_END_DLQ_라우팅_키를_사용한다() throws IOException {
+    void processEvent_END_이벤트는_END_DLQ_라우팅_키를_사용한다() throws Exception {
         // given
         Long auctionId = 1L;
         Long version = 1L;
@@ -248,8 +284,21 @@ public class AuctionEventProcessorTest {
         );
         given(messageProperties.getHeaders()).willReturn(Map.of("x-death", List.of(xDeathEntry)));
 
+        // confirmTimeoutMs 설정
+        ReflectionTestUtils.setField(auctionEventProcessor, "confirmTimeoutMs", 5000L);
+
+        // DLQ 전송 모킹
+        willAnswer(invocation -> {
+            CorrelationData cd = invocation.getArgument(4, CorrelationData.class);
+            CorrelationData.Confirm confirm = new CorrelationData.Confirm(true, null);
+            CompletableFuture<CorrelationData.Confirm> future = new CompletableFuture<>();
+            future.complete(confirm);
+            ReflectionTestUtils.setField(cd, "future", future);
+            return null;
+        }).given(rabbitTemplate).convertAndSend(anyString(), anyString(), any(), any(), any(CorrelationData.class));
+
         willThrow(new RuntimeException("시스템 예외"))
-                .given(auctionHandler).accept(auctionId);
+                .given(auctionHandler).accept(anyLong());
 
         // when
         auctionEventProcessor.processEvent(event, message, channel, auctionHandler, "경매 종료", "END");
@@ -259,7 +308,9 @@ public class AuctionEventProcessorTest {
         then(rabbitTemplate).should().convertAndSend(
                 eq(AuctionRabbitMqConfig.AUCTION_DLX),
                 routingKeyCaptor.capture(),
-                eq(event)
+                eq(event),
+                any(),
+                any()
         );
         assertThat(routingKeyCaptor.getValue()).isEqualTo(AuctionRabbitMqConfig.AUCTION_END_DLQ_KEY);
     }
