@@ -172,12 +172,8 @@ public class AuctionRabbitMqConfig {
    * - x-overflow: drop-head (큐가 가득 차면 가장 오래된 메시지부터 삭제)
    */
   @Bean
-  public Queue auctionStartDLQ() {
-    return QueueBuilder.durable(AUCTION_START_DLQ)
-        .withArgument("x-max-length", DLQ_MAX_LENGTH)
-        .withArgument("x-message-ttl", DLQ_TTL_MS)
-        .withArgument("x-overflow", "drop-head")
-        .build();
+  public Queue auctionStartDlq() {
+    return createDlq(AUCTION_START_DLQ);
   }
 
   /**
@@ -189,8 +185,12 @@ public class AuctionRabbitMqConfig {
    * - x-overflow: drop-head (큐가 가득 차면 가장 오래된 메시지부터 삭제)
    */
   @Bean
-  public Queue auctionEndDLQ() {
-    return QueueBuilder.durable(AUCTION_END_DLQ)
+  public Queue auctionEndDlq() {
+    return createDlq(AUCTION_END_DLQ);
+  }
+
+  private Queue createDlq(String queueName){
+    return QueueBuilder.durable(queueName)
         .withArgument("x-max-length", DLQ_MAX_LENGTH)
         .withArgument("x-message-ttl", DLQ_TTL_MS)
         .withArgument("x-overflow", "drop-head")
@@ -200,7 +200,7 @@ public class AuctionRabbitMqConfig {
   // DLQ Binding: DLX에 바인딩하여 DLQ 라우팅 키로 들어오는 메시지를 수신
   @Bean
   public Binding auctionStartDLQBinding(
-      @Qualifier("auctionStartDLQ") Queue auctionStartDLQ, DirectExchange auctionDLX) {
+      @Qualifier("auctionStartDlq") Queue auctionStartDLQ, DirectExchange auctionDLX) {
     return BindingBuilder
         .bind(auctionStartDLQ)
         .to(auctionDLX)
@@ -209,7 +209,7 @@ public class AuctionRabbitMqConfig {
 
   @Bean
   public Binding auctionEndDLQBinding(
-      @Qualifier("auctionEndDLQ") Queue auctionEndDLQ, DirectExchange auctionDLX) {
+      @Qualifier("auctionEndDlq") Queue auctionEndDLQ, DirectExchange auctionDLX) {
     return BindingBuilder
         .bind(auctionEndDLQ)
         .to(auctionDLX)
