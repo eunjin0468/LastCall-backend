@@ -181,6 +181,7 @@ public class AuctionEventListener {
     String originQueue = switch (eventType) {
       case START -> AuctionRabbitMqConfig.AUCTION_START_QUEUE;
       case END -> AuctionRabbitMqConfig.AUCTION_END_QUEUE;
+      default -> throw new IllegalArgumentException("Unsupported eventType: " + eventType);
     };
 
     Map<String, Object> headers = message.getMessageProperties().getHeaders();

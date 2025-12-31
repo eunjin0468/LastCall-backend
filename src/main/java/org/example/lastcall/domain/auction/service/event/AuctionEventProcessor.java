@@ -106,6 +106,7 @@ public class AuctionEventProcessor {
     String originQueue = switch (queueType) {
       case START -> AuctionRabbitMqConfig.AUCTION_START_QUEUE;
       case END -> AuctionRabbitMqConfig.AUCTION_END_QUEUE;
+      default -> throw new IllegalArgumentException("Unsupported queueType: " + queueType);
     };
     try {
       Object xDeath = message.getMessageProperties().getHeaders().get("x-death");
@@ -164,6 +165,7 @@ public class AuctionEventProcessor {
     String rk = switch (queueType) {
       case START -> AuctionRabbitMqConfig.AUCTION_START_DLQ_KEY;
       case END -> AuctionRabbitMqConfig.AUCTION_END_DLQ_KEY;
+      default -> throw new IllegalArgumentException("Unsupported queueType: " + queueType);
     };
 
     String corrId = event.getAuctionId() + "-" + UUID.randomUUID();
