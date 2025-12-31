@@ -2,6 +2,7 @@ package org.example.lastcall.domain.auction.entity;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.example.lastcall.common.entity.BaseEntity;
@@ -56,20 +57,11 @@ public class FailedEvent extends BaseEntity {
     private String correlationId; // DLQ 전송 시 correlation ID
 
     /**
-     * 실패 이벤트 생성
-     *
-     * @param auctionId 경매 ID
-     * @param eventType 이벤트 타입 (START/END)
-     * @param eventVersion 이벤트 버전
-     * @param eventPayload 이벤트 페이로드 (JSON)
-     * @param errorMessage 오류 메시지
-     * @param errorStackTrace 스택 트레이스
-     * @param retryCount 재시도 횟수
-     * @param rabbitMessageId RabbitMQ 메시지 ID
-     * @param correlationId Correlation ID
-     * @return FailedEvent 인스턴스
+     * 빌더 패턴을 위한 생성자
+     * id는 @GeneratedValue로 자동 생성되므로 생성자 파라미터에서 제외
      */
-    public static FailedEvent of(
+    @Builder
+    private FailedEvent(
         Long auctionId,
         AuctionEventType eventType,
         Long eventVersion,
@@ -80,16 +72,14 @@ public class FailedEvent extends BaseEntity {
         String rabbitMessageId,
         String correlationId
     ) {
-        FailedEvent failedEvent = new FailedEvent();
-        failedEvent.auctionId = auctionId;
-        failedEvent.eventType = eventType;
-        failedEvent.eventVersion = eventVersion;
-        failedEvent.eventPayload = eventPayload;
-        failedEvent.errorMessage = errorMessage;
-        failedEvent.errorStackTrace = errorStackTrace;
-        failedEvent.retryCount = retryCount;
-        failedEvent.rabbitMessageId = rabbitMessageId;
-        failedEvent.correlationId = correlationId;
-        return failedEvent;
+        this.auctionId = auctionId;
+        this.eventType = eventType;
+        this.eventVersion = eventVersion;
+        this.eventPayload = eventPayload;
+        this.errorMessage = errorMessage;
+        this.errorStackTrace = errorStackTrace;
+        this.retryCount = retryCount;
+        this.rabbitMessageId = rabbitMessageId;
+        this.correlationId = correlationId;
     }
 }

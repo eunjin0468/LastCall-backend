@@ -113,31 +113,30 @@ public class AuctionEventListener {
       String rabbitMessageId = message.getMessageProperties().getMessageId();
       String correlationId = message.getMessageProperties().getCorrelationId();
 
-      return FailedEvent.of(
-          event.getAuctionId(),
-          eventType,
-          event.getVersion(),
-          eventPayload,
-          errorMessage,
-          errorStackTrace,
-          retryCount,
-          rabbitMessageId,
-          correlationId
-      );
+      return FailedEvent.builder()
+          .auctionId(event.getAuctionId())
+          .eventType(eventType)
+          .eventVersion(event.getVersion())
+          .eventPayload(eventPayload)
+          .errorMessage(errorMessage)
+          .errorStackTrace(errorStackTrace)
+          .retryCount(retryCount)
+          .rabbitMessageId(rabbitMessageId)
+          .correlationId(correlationId)
+          .build();
     } catch (Exception e) {
       log.error("[DLQ] FailedEvent 생성 중 예외 발생", e);
-      // 기본값으로 생성
-      return FailedEvent.of(
-          event.getAuctionId(),
-          eventType,
-          event.getVersion(),
-          event.toString(),
-          "FailedEvent 생성 실패: " + e.getMessage(),
-          getStackTraceAsString(e),
-          0,
-          null,
-          null
-      );
+      return FailedEvent.builder()
+          .auctionId(event.getAuctionId())
+          .eventType(eventType)
+          .eventVersion(event.getVersion())
+          .eventPayload(event.toString())
+          .errorMessage("FailedEvent 생성 실패: " + e.getMessage())
+          .errorStackTrace(getStackTraceAsString(e))
+          .retryCount(0)
+          .rabbitMessageId(null)
+          .correlationId(null)
+          .build();
     }
   }
 
