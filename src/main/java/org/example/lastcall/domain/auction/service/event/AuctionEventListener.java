@@ -14,6 +14,7 @@ import org.example.lastcall.domain.auction.entity.FailedEvent;
 import org.example.lastcall.domain.auction.enums.AuctionEventType;
 import org.example.lastcall.domain.auction.repository.FailedEventRepository;
 import org.example.lastcall.domain.auction.service.command.AuctionCommandService;
+import org.example.lastcall.domain.auction.service.notification.SlackAlertService;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,7 @@ public class AuctionEventListener {
   private final AuctionEventProcessor auctionEventConsumer;
   private final FailedEventRepository failedEventRepository;
   private final ObjectMapper objectMapper;
+  private final SlackAlertService slackAlertService;
 
   // 경매 시작 이벤트 처리 메서드
   @RabbitListener(queues = AuctionRabbitMqConfig.AUCTION_START_QUEUE)
@@ -45,7 +47,7 @@ public class AuctionEventListener {
   /**
    * 경매 시작 DLQ 메시지 처리
    *
-   * 최대 재시도 횟수를 초과한 경매 시작 이벤트를 처리합니다.
+   * 최대 재시도 횟수를 초과한 경매 시작 이벤트를 처리
    * - 에러 로그 기록
    * - DB에 실패 이벤트 저장
    * - 메시지 ACK 처리 (DLQ에서 제거)
@@ -85,7 +87,10 @@ public class AuctionEventListener {
       log.info("[DLQ] 실패 이벤트 DB 저장 완료: failedEventId={}, auctionId={}",
           failedEvent.getId(), event.getAuctionId());
 
-      // 3. 메시지 ACK (DLQ에서 제거)
+      // 3. Slack 알림 전송 (비동기, 실패해도 무시)
+      slackAlertService.sendDLQAlert(failedEvent);
+
+      // 4. 메시지 ACK (DLQ에서 제거)
       channel.basicAck(message.getMessageProperties().getDeliveryTag(), false);
 
       log.info("[DLQ] {} 이벤트 처리 완료: auctionId={}", eventType, event.getAuctionId());
