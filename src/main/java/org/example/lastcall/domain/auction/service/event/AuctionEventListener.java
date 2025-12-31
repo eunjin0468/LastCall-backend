@@ -27,6 +27,7 @@ public class AuctionEventListener {
   private final AuctionEventProcessor auctionEventConsumer;
   private final FailedEventRepository failedEventRepository;
   private final ObjectMapper objectMapper;
+  private final SlackAlertService slackAlertService;
 
   // 경매 시작 이벤트 처리 메서드
   @RabbitListener(queues = AuctionRabbitMqConfig.AUCTION_START_QUEUE)
@@ -85,7 +86,10 @@ public class AuctionEventListener {
       log.info("[DLQ] 실패 이벤트 DB 저장 완료: failedEventId={}, auctionId={}",
           failedEvent.getId(), event.getAuctionId());
 
-      // 3. 메시지 ACK (DLQ에서 제거)
+      // 3. Slack 알림 전송 (비동기, 실패해도 무시)
+      slackAlertService.sendDLQAlert(failedEvent);
+
+      // 4. 메시지 ACK (DLQ에서 제거)
       channel.basicAck(message.getMessageProperties().getDeliveryTag(), false);
 
       log.info("[DLQ] {} 이벤트 처리 완료: auctionId={}", eventType, event.getAuctionId());

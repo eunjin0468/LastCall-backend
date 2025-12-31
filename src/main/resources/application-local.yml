@@ -63,6 +63,10 @@ rabbitmq:
   dlq:
     confirm-timeout-ms: 5000
 
+slack:
+  webhook:
+    dlq-alert: ${SLACK_WEBHOOK_URL}
+
 jwt:
   secret: ${JWT_SECRET}
 
