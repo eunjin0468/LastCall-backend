@@ -36,6 +36,10 @@ spring:
       time-to-live: 3600s
       cache-null-values: false
 
+rabbitmq:
+  dlq:
+    confirm-timeout-ms: 5000
+
 logging:
   level:
     org.hibernate.SQL: info

@@ -58,6 +58,11 @@ spring:
     properties:
       hibernate:
         format_sql: true
+
+rabbitmq:
+  dlq:
+    confirm-timeout-ms: 5000
+
 jwt:
   secret: ${JWT_SECRET}
 
