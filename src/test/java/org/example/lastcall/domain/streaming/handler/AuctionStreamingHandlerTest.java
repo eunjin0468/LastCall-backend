@@ -16,6 +16,7 @@ import org.springframework.web.socket.WebSocketSession;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -347,26 +348,32 @@ class AuctionStreamingHandlerTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 사용자에게 메시지를 보내려고 하면 로그만 출력되고 예외가 발생하지 않는다")
-    void givenNonExistentReceiver_whenSendMessage_thenNoExceptionThrown() throws Exception {
-      // given
+    @DisplayName("존재하지 않는 사용자에게 OFFER를 보내면 전송되지 않고 예외도 발생하지 않는다")
+    void givenNonExistentReceiver_whenSendOffer_thenNotSentAndNoException() throws Exception {
+      // given: host만 JOIN
       SignalingMessage joinHost = SignalingMessage.builder()
           .type(MessageType.JOIN.name())
           .sender("host")
           .build();
       handler.handleTextMessage(mockSession1, new TextMessage(objectMapper.writeValueAsString(joinHost)));
 
-      // when
+      // JOIN 응답 검증 후 초기화
+      verify(mockSession1, times(1)).sendMessage(any(TextMessage.class));
+      reset(mockSession1);
+
+      // when: 존재하지 않는 사용자에게 OFFER 전송 시도
       SignalingMessage offerMessage = SignalingMessage.builder()
           .type(MessageType.OFFER.name())
           .sender("host")
           .receiver("nonexistent")
           .data(Map.of("sdp", "v=0..."))
           .build();
-      handler.handleTextMessage(mockSession1, new TextMessage(objectMapper.writeValueAsString(offerMessage)));
 
-      // then
-      verify(mockSession1, atLeastOnce()).sendMessage(any(TextMessage.class));
+      // then: 예외 발생 안 함, 메시지도 전송 안 됨
+      assertDoesNotThrow(() ->
+          handler.handleTextMessage(mockSession1, new TextMessage(objectMapper.writeValueAsString(offerMessage)))
+      );
+      verify(mockSession1, never()).sendMessage(any(TextMessage.class));
     }
   }
 }
