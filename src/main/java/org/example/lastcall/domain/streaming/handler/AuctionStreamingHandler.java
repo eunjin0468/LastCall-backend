@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.lastcall.domain.streaming.dto.SignalingMessage;
 import org.example.lastcall.domain.streaming.dto.UserSession;
 import org.example.lastcall.domain.streaming.enums.MessageType;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -22,8 +23,16 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 @Component
 @RequiredArgsConstructor
 public class AuctionStreamingHandler extends TextWebSocketHandler {
+
   private final ObjectMapper objectMapper;
-  private final ConcurrentHashMap<String, UserSession> sessions = new ConcurrentHashMap<>();
+
+  /**
+   * 세션 관리 기준을 "세션 ID"로 통일합니다. - sessionsById: sessionId -> UserSession (브로드캐스트/정리 기준) -
+   * sessionsByName: username -> UserSession (sendToUser O(1) 조회)
+   */
+  private final ConcurrentHashMap<String, UserSession> sessionsById = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, UserSession> sessionsByName = new ConcurrentHashMap<>();
+  private final ResourceLoader resourceLoader;
 
   @Override
   public void afterConnectionEstablished(final WebSocketSession session) {
@@ -71,15 +80,9 @@ public class AuctionStreamingHandler extends TextWebSocketHandler {
         break;
 
       case OFFER:
-        handleOffer(session, signalingMessage);
-        break;
-
       case ANSWER:
-        handleAnswer(session, signalingMessage);
-        break;
-
       case ICE_CANDIDATE:
-        handleIceCandidate(session, signalingMessage);
+        handleSignalingRelay(signalingMessage);
         break;
 
       default:
@@ -90,12 +93,10 @@ public class AuctionStreamingHandler extends TextWebSocketHandler {
   private void handleJoin(WebSocketSession session, SignalingMessage message) throws IOException {
     String username = message.getSender();
 
-    UserSession userSession = message.toUserSession(session);
-    sessions.put(session.getId(), userSession);
-
+    boolean joined = registerSession(session, message);
     SignalingMessage response = SignalingMessage.ofJoinResult(
         username,
-        true
+        joined
     );
 
     sendMessage(session, response);
@@ -103,30 +104,38 @@ public class AuctionStreamingHandler extends TextWebSocketHandler {
 
   @Override
   public void afterConnectionClosed(final WebSocketSession session, final CloseStatus status) {
-    log.info("WebSocket connection closed: {}", session.getId());
-    sessions.values()
-        .removeIf(userSession -> userSession.getSession().getId().equals(session.getId()));
+    UserSession removed = removeSession(session);
+    if (removed != null) {
+      log.info("WebSocket 연결 종료: {}", session.getId());
+    }
+    log.info("WebSocket 연결 종료: {}", session.getId());
+    removeSession(session);
   }
 
   private void handleEnterAuctionRoom(WebSocketSession session, SignalingMessage message) {
-    String userId = message.getSender();
+    String username = message.getSender();
 
-    if (sessions.containsKey(userId)) {
-      log.warn("User already in room: {}", userId);
-      return;
+    UserSession existing = sessionsById.get(session.getId());
+    if (existing == null) {
+      boolean registered = registerSession(session, message);
+      if (!registered) {
+        log.warn("사용자 이름이 이미 사용 중이라 입장할 수 없습니다: {}", username);
+        return;
+      }
     }
 
-    UserSession userSession = message.toUserSession(session);
-    sessions.put(userId, userSession);
-    log.info("User entered auction room: {}", userId);
+    log.info("사용자가 경매방에 입장하였습니다: {}", username);
 
     broadcastToAll(message);
   }
 
   private void handleLeaveAuctionRoom(WebSocketSession session) {
-    sessions.values()
-        .removeIf(userSession -> userSession.getSession().getId().equals(session.getId()));
-    log.info("User left auction room: {}", session.getId());
+    UserSession removed = removeSession(session);
+    if (removed != null) {
+      log.info("사용자가 경매방에서 퇴장했습니다: {}", removed.getName());
+      return;
+    }
+    log.info("사용자가 경매방에서 퇴장했습니다: {}", session.getId());
   }
 
   private void handleStartStream(SignalingMessage message) {
@@ -150,11 +159,11 @@ public class AuctionStreamingHandler extends TextWebSocketHandler {
   }
 
   private void broadcastToAll(SignalingMessage message) {
-    sessions.values().forEach(userSession -> {
+    sessionsById.values().forEach(userSession -> {
       try {
         sendMessage(userSession.getSession(), message);
       } catch (IOException e) {
-        log.error("Failed to send message to: {}", userSession.getName(), e);
+        log.error("메시지 전송에 실패했습니다: {}", userSession.getName(), e);
       }
     });
   }
@@ -167,26 +176,53 @@ public class AuctionStreamingHandler extends TextWebSocketHandler {
   }
 
   /**
-   * WebRTC OFFER 처리 (호스트 → 시청자)
+   * 세션 등록 (username 유일성 보장) - username은 중복 불가 - 세션 관리 기준은 sessionId로 통일
    */
-  private void handleOffer(WebSocketSession session, SignalingMessage message) {
-    log.info("OFFER from {} to {}", message.getSender(), message.getReceiver());
-    sendToUser(message.getReceiver(), message);
+  private boolean registerSession(WebSocketSession session, SignalingMessage message) {
+    String username = message.getSender();
+    UserSession userSession = message.toUserSession(session);
+
+    // 같은 세션이 다른 username으로 재JOIN하는 경우, 이전 username 매핑을 먼저 정리
+    UserSession previous = sessionsById.get(session.getId());
+    if (previous != null && !previous.getName().equals(username)) {
+      sessionsByName.remove(previous.getName(), previous);
+    }
+
+    // username 중복 방지: 이미 다른 세션이 사용 중이면 거부
+    UserSession existing = sessionsByName.putIfAbsent(username, userSession);
+    if (existing != null && !existing.getSession().getId().equals(session.getId())) {
+      log.warn("사용자 이름이 이미 사용 중입니다: {}", username);
+      return false;
+    }
+
+    // sessionId 기준 등록(덮어쓰기 가능: 재연결/재JOIN 대비)
+    sessionsById.put(session.getId(), userSession);
+
+    // putIfAbsent로 본인 세션이 이미 들어가 있었던 케이스도 동일 객체로 정합성 맞춤
+    sessionsByName.put(username, userSession);
+
+    return true;
   }
 
   /**
-   * WebRTC ANSWER 처리 (시청자 → 호스트)
+   * 세션 제거 (두 맵 동시 정리)
    */
-  private void handleAnswer(WebSocketSession session, SignalingMessage message) {
-    log.info("ANSWER from {} to {}", message.getSender(), message.getReceiver());
-    sendToUser(message.getReceiver(), message);
+  private UserSession removeSession(WebSocketSession session) {
+    UserSession removed = sessionsById.remove(session.getId());
+    if (removed == null) {
+      return null;
+    }
+
+    // 동일 객체일 때만 제거 (동시성 상황에서의 안전장치)
+    sessionsByName.remove(removed.getName(), removed);
+    return removed;
   }
 
   /**
-   * WebRTC ICE_CANDIDATE 처리 (양방향)
+   * WebRTC 시그널링 메시지 릴레이 (OFFER, ANSWER, ICE_CANDIDATE)
    */
-  private void handleIceCandidate(WebSocketSession session, SignalingMessage message) {
-    log.info("ICE_CANDIDATE from {} to {}", message.getSender(), message.getReceiver());
+  private void handleSignalingRelay(SignalingMessage message) {
+    log.info("{} from {} to {}", message.getType(), message.getSender(), message.getReceiver());
     sendToUser(message.getReceiver(), message);
   }
 
@@ -194,20 +230,17 @@ public class AuctionStreamingHandler extends TextWebSocketHandler {
    * 특정 사용자에게만 메시지 전송 (WebRTC 시그널링용)
    */
   private void sendToUser(String username, SignalingMessage message) {
-    UserSession targetUser = sessions.values().stream()
-        .filter(userSession -> userSession.getName().equals(username))
-        .findFirst()
-        .orElse(null);
+    UserSession targetUser = sessionsByName.get(username);
 
     if (targetUser == null) {
-      log.warn("Target user not found: {}", username);
+      log.warn("대상 사용자를 찾을 수 없습니다: {}", username);
       return;
     }
 
     try {
       sendMessage(targetUser.getSession(), message);
     } catch (IOException e) {
-      log.error("Failed to send message to user: {}", username, e);
+      log.error("사용자에게 메시지 전송에 실패했습니다: {}", username, e);
     }
   }
 }
