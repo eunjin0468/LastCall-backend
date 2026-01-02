@@ -59,22 +59,37 @@ class AuctionStreamingHandlerTest {
     }
 
     @Test
-    @DisplayName("WebSocket 연결이 종료되면 세션이 제거된다")
-    void givenActiveSession_whenConnectionClosed_thenSessionIsRemoved() throws Exception {
-      // given
-      SignalingMessage joinMessage = SignalingMessage.builder()
+    @DisplayName("WebSocket 연결이 종료되면 세션이 제거되어 브로드캐스트에서 제외된다")
+    void givenActiveSession_whenConnectionClosed_thenSessionRemovedFromBroadcast() throws Exception {
+      // given: 2개 세션 JOIN
+      SignalingMessage join1 = SignalingMessage.builder()
           .type(MessageType.JOIN.name())
           .sender("user1")
           .build();
+      handler.handleTextMessage(mockSession1, new TextMessage(objectMapper.writeValueAsString(join1)));
 
-      String jsonMessage = objectMapper.writeValueAsString(joinMessage);
-      handler.handleTextMessage(mockSession1, new TextMessage(jsonMessage));
+      SignalingMessage join2 = SignalingMessage.builder()
+          .type(MessageType.JOIN.name())
+          .sender("user2")
+          .build();
+      handler.handleTextMessage(mockSession2, new TextMessage(objectMapper.writeValueAsString(join2)));
 
-      // when
+      // JOIN 응답 호출 기록 초기화
+      clearInvocations(mockSession1);
+      clearInvocations(mockSession2);
+
+      // when: session1 종료 후 broadcast
       handler.afterConnectionClosed(mockSession1, CloseStatus.NORMAL);
 
+      SignalingMessage broadcast = SignalingMessage.builder()
+          .type(MessageType.START_STREAM.name())
+          .sender("user2")
+          .build();
+      handler.handleTextMessage(mockSession2, new TextMessage(objectMapper.writeValueAsString(broadcast)));
+
       // then
-      verify(mockSession1, atLeastOnce()).getId();
+      verify(mockSession1, never()).sendMessage(any(TextMessage.class));  // 제거된 세션
+      verify(mockSession2, atLeastOnce()).sendMessage(any(TextMessage.class));  // 남은 세션
     }
   }
 
@@ -357,10 +372,6 @@ class AuctionStreamingHandlerTest {
           .build();
       handler.handleTextMessage(mockSession1, new TextMessage(objectMapper.writeValueAsString(joinHost)));
 
-      // JOIN 응답 검증 후 초기화
-      verify(mockSession1, times(1)).sendMessage(any(TextMessage.class));
-      reset(mockSession1);
-
       // when: 존재하지 않는 사용자에게 OFFER 전송 시도
       SignalingMessage offerMessage = SignalingMessage.builder()
           .type(MessageType.OFFER.name())
@@ -369,11 +380,13 @@ class AuctionStreamingHandlerTest {
           .data(Map.of("sdp", "v=0..."))
           .build();
 
-      // then: 예외 발생 안 함, 메시지도 전송 안 됨
+      // then: 예외 발생 안 함
       assertDoesNotThrow(() ->
           handler.handleTextMessage(mockSession1, new TextMessage(objectMapper.writeValueAsString(offerMessage)))
       );
-      verify(mockSession1, never()).sendMessage(any(TextMessage.class));
+
+      // JOIN 응답 1번 + OFFER 전송 0번 = 총 1번만 호출
+      verify(mockSession1, times(1)).sendMessage(any(TextMessage.class));
     }
   }
 }
