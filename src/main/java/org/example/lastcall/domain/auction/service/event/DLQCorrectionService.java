@@ -61,7 +61,7 @@ public class DLQCorrectionService {
    * 개별 실패 이벤트 보정
    */
   private void correctFailedEvent(FailedEvent event) {
-    // 안전장치 1: 보정 시도 횟수 제한
+    // 보정 시도 횟수 제한
     if (event.getCorrectionAttempts() >= MAX_CORRECTION_ATTEMPTS) {
       log.warn("[DLQ 자동보정] 보정 시도 횟수 초과 - 수동 개입 필요: failedEventId={}, auctionId={}, attempts={}",
           event.getId(), event.getAuctionId(), event.getCorrectionAttempts());
@@ -72,7 +72,7 @@ public class DLQCorrectionService {
         event.getId(), event.getAuctionId(), event.getEventType(), event.getCorrectionAttempts() + 1);
 
     try {
-      // 안전장치 2: 경매 존재 여부 확인
+      // 경매 존재 여부 확인
       Auction auction = auctionRepository.findById(event.getAuctionId())
           .orElse(null);
 
@@ -84,7 +84,7 @@ public class DLQCorrectionService {
         return;
       }
 
-      // 안전장치 3: 버전 일치 확인 (멱등성)
+      // 버전 일치 확인 (멱등성)
       if (!Objects.equals(auction.getEventVersion(), event.getEventVersion())) {
         log.info("[DLQ 자동보정] 버전 불일치 - 이미 다른 경로로 처리됨: failedEventId={}, auctionId={}, expected={}, actual={}",
             event.getId(), event.getAuctionId(), event.getEventVersion(), auction.getEventVersion());
@@ -97,15 +97,12 @@ public class DLQCorrectionService {
       boolean corrected = processCorrectionByEventType(event, auction);
 
       if (corrected) {
-        event.markAsProcessed();
-        failedEventRepository.save(event);
         log.info("[DLQ 자동보정] 보정 성공: failedEventId={}, auctionId={}, eventType={}",
             event.getId(), event.getAuctionId(), event.getEventType());
-      } else {
-        // 보정이 필요 없는 경우 (이미 처리됨)
+      }
+        // 보정이 성공했거나 불필요한 경우(이미 처리됨) 모두 processed로 마킹
         event.markAsProcessed();
         failedEventRepository.save(event);
-      }
 
     } catch (Exception e) {
       log.error("[DLQ 자동보정] 보정 실패: failedEventId={}, auctionId={}, eventType={}, attempt={}",
@@ -115,7 +112,7 @@ public class DLQCorrectionService {
       event.incrementCorrectionAttempts();
       failedEventRepository.save(event);
 
-      // 안전장치 4: 최종 실패 시 Slack 알림
+      // 최종 실패 시 Slack 알림
       if (event.getCorrectionAttempts() >= MAX_CORRECTION_ATTEMPTS) {
         log.error("[DLQ 자동보정] 최종 실패 - Slack 알림 전송: failedEventId={}, auctionId={}",
             event.getId(), event.getAuctionId());
@@ -144,7 +141,7 @@ public class DLQCorrectionService {
    * 경매 시작 이벤트 보정
    */
   private boolean correctStartEvent(FailedEvent event, Auction auction) {
-    // 안전장치: 이미 진행 중이거나 종료된 경매는 스킵
+    // 이미 진행 중이거나 종료된 경매는 스킵
     if (auction.getStatus() != AuctionStatus.SCHEDULED) {
       log.info("[DLQ 자동보정] 경매 시작 불필요 - 이미 처리됨: auctionId={}, status={}",
           auction.getId(), auction.getStatus());
@@ -161,7 +158,7 @@ public class DLQCorrectionService {
    * 경매 종료 이벤트 보정
    */
   private boolean correctEndEvent(FailedEvent event, Auction auction) {
-    // 안전장치: 이미 종료된 경매는 스킵
+    // 이미 종료된 경매는 스킵
     if (auction.getStatus() == AuctionStatus.CLOSED ||
         auction.getStatus() == AuctionStatus.CLOSED_FAILED) {
       log.info("[DLQ 자동보정] 경매 종료 불필요 - 이미 종료됨: auctionId={}, status={}",
@@ -169,7 +166,7 @@ public class DLQCorrectionService {
       return false;
     }
 
-    // 안전장치: SCHEDULED 상태면 종료 불가
+    // SCHEDULED 상태면 종료 불가
     if (auction.getStatus() == AuctionStatus.SCHEDULED) {
       log.warn("[DLQ 자동보정] 경매 종료 불가 - SCHEDULED 상태: auctionId={}", auction.getId());
       return false;
