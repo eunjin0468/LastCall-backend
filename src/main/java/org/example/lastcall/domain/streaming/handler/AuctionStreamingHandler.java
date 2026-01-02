@@ -70,6 +70,18 @@ public class AuctionStreamingHandler extends TextWebSocketHandler {
         handleSendBid(signalingMessage);
         break;
 
+      case OFFER:
+        handleOffer(session, signalingMessage);
+        break;
+
+      case ANSWER:
+        handleAnswer(session, signalingMessage);
+        break;
+
+      case ICE_CANDIDATE:
+        handleIceCandidate(session, signalingMessage);
+        break;
+
       default:
         log.warn("Unknown message type: {}", type);
     }
@@ -151,6 +163,51 @@ public class AuctionStreamingHandler extends TextWebSocketHandler {
     if (session.isOpen()) {
       String json = objectMapper.writeValueAsString(message);
       session.sendMessage(new TextMessage(json));
+    }
+  }
+
+  /**
+   * WebRTC OFFER 처리 (호스트 → 시청자)
+   */
+  private void handleOffer(WebSocketSession session, SignalingMessage message) {
+    log.info("OFFER from {} to {}", message.getSender(), message.getReceiver());
+    sendToUser(message.getReceiver(), message);
+  }
+
+  /**
+   * WebRTC ANSWER 처리 (시청자 → 호스트)
+   */
+  private void handleAnswer(WebSocketSession session, SignalingMessage message) {
+    log.info("ANSWER from {} to {}", message.getSender(), message.getReceiver());
+    sendToUser(message.getReceiver(), message);
+  }
+
+  /**
+   * WebRTC ICE_CANDIDATE 처리 (양방향)
+   */
+  private void handleIceCandidate(WebSocketSession session, SignalingMessage message) {
+    log.info("ICE_CANDIDATE from {} to {}", message.getSender(), message.getReceiver());
+    sendToUser(message.getReceiver(), message);
+  }
+
+  /**
+   * 특정 사용자에게만 메시지 전송 (WebRTC 시그널링용)
+   */
+  private void sendToUser(String username, SignalingMessage message) {
+    UserSession targetUser = sessions.values().stream()
+        .filter(userSession -> userSession.getName().equals(username))
+        .findFirst()
+        .orElse(null);
+
+    if (targetUser == null) {
+      log.warn("Target user not found: {}", username);
+      return;
+    }
+
+    try {
+      sendMessage(targetUser.getSession(), message);
+    } catch (IOException e) {
+      log.error("Failed to send message to user: {}", username, e);
     }
   }
 }
