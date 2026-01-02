@@ -46,7 +46,8 @@ public interface FailedEventRepository extends JpaRepository<FailedEvent, Long> 
      * 미처리 실패 이벤트 조회 (자동 보정 대상)
      * - processed = false
      * - correctionAttempts < 3
+     * - 배치 크기 50건으로 제한 (트랜잭션 시간 제어: 약 5초)
      */
-    @Query("SELECT f FROM FailedEvent f WHERE f.processed = false AND f.correctionAttempts < 3 ORDER BY f.createdAt ASC")
+    @Query("SELECT f FROM FailedEvent f WHERE f.processed = false AND f.correctionAttempts < 3 ORDER BY f.createdAt ASC LIMIT 50")
     List<FailedEvent> findUnprocessedForCorrection();
 }
