@@ -6,15 +6,17 @@ import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.web.client.RestTemplate;
 
 /**
- * 비동기 작업 설정
- * Slack 알림 등 부가 기능을 비동기로 처리하여 메인 로직에 영향을 주지 않도록 함
+ * 비동기 작업 및 스케줄링 설정
+ * Slack 알림 등 부가 기능을 비동기로 처리하고, DLQ 자동 보정 등 주기적 작업을 스케줄링합니다.
  */
 @Configuration
 @EnableAsync
+@EnableScheduling
 public class AsyncConfig {
 
   @Bean(name = "slackAlertExecutor")
