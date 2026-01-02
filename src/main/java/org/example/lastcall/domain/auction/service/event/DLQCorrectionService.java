@@ -40,7 +40,8 @@ public class DLQCorrectionService {
   @Scheduled(fixedDelay = 60000) // 1분마다
   @Transactional
   public void autoCorrectFailedEvents() {
-    List<FailedEvent> unprocessed = failedEventRepository.findUnprocessedForCorrection();
+    List<FailedEvent> unprocessed =
+        failedEventRepository.findUnprocessedForCorrection(MAX_CORRECTION_ATTEMPTS);
 
     if (unprocessed.isEmpty()) {
       return;
