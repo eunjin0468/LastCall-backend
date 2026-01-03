@@ -137,24 +137,32 @@ class AuctionStreamingHandlerTest {
     }
 
     @Test
-    @DisplayName("LEAVE_AUCTION_ROOM 메시지를 받으면 방에서 퇴장한다")
-    void givenLeaveRoomMessage_whenHandleMessage_thenUserLeavesRoom() throws Exception {
-      // given
-      SignalingMessage enterMessage = SignalingMessage.builder()
-          .type(MessageType.ENTER_AUCTION_ROOM.name())
-          .sender("user1")
-          .build();
-      handler.handleTextMessage(mockSession1, new TextMessage(objectMapper.writeValueAsString(enterMessage)));
+    @DisplayName("LEAVE_AUCTION_ROOM 메시지를 받으면 방에서 퇴장하고 브로드캐스트에서 제외된다")
+    void leaveRoom_excludesFromBroadcast() throws Exception {
+      // given: 2명의 사용자가 방에 입장
+      SignalingMessage enterMessage1 = SignalingMessage.builder()
+          .type(MessageType.ENTER_AUCTION_ROOM.name()).sender("user1").build();
+      handler.handleTextMessage(mockSession1, new TextMessage(objectMapper.writeValueAsString(enterMessage1)));
 
-      // when
+      SignalingMessage enterMessage2 = SignalingMessage.builder()
+          .type(MessageType.ENTER_AUCTION_ROOM.name()).sender("user2").build();
+      handler.handleTextMessage(mockSession2, new TextMessage(objectMapper.writeValueAsString(enterMessage2)));
+
+      clearInvocations(mockSession1, mockSession2);
+
+      // when: user1이 퇴장
       SignalingMessage leaveMessage = SignalingMessage.builder()
-          .type(MessageType.LEAVE_AUCTION_ROOM.name())
-          .sender("user1")
-          .build();
+          .type(MessageType.LEAVE_AUCTION_ROOM.name()).sender("user1").build();
       handler.handleTextMessage(mockSession1, new TextMessage(objectMapper.writeValueAsString(leaveMessage)));
 
-      // then
-      verify(mockSession1, atLeastOnce()).getId();
+      // and: user2가 브로드캐스트 메시지 전송
+      SignalingMessage broadcastMessage = SignalingMessage.builder()
+          .type(MessageType.SEND_CHAT.name()).sender("user2").data("hello").build();
+      handler.handleTextMessage(mockSession2, new TextMessage(objectMapper.writeValueAsString(broadcastMessage)));
+
+      // then: user1은 메시지를 받지 않고, user2는 받음
+      verify(mockSession1, never()).sendMessage(any(TextMessage.class));
+      verify(mockSession2, atLeastOnce()).sendMessage(any(TextMessage.class));
     }
   }
 
