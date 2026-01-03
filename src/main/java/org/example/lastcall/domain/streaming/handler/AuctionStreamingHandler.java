@@ -116,10 +116,7 @@ public class AuctionStreamingHandler extends TextWebSocketHandler {
   private void handleEnterAuctionRoom(WebSocketSession session, SignalingMessage message) {
     String username = message.getSender();
 
-    UserSession existing = sessionsById.get(session.getId());
-    if (existing == null) {
-      registerSession(session, message);
-    }
+    registerSession(session, message);
 
     log.info("사용자가 경매방에 입장하였습니다: {}", username);
 
