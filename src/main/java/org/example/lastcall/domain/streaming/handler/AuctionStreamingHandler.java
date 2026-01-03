@@ -175,7 +175,7 @@ public class AuctionStreamingHandler extends TextWebSocketHandler {
    * - 같은 username으로 새 접속이 들어오면 기존 접속을 종료하고 새 접속으로 전환
    * - 재접속, 새로고침 등의 상황에서 빠른 접속 가능
    */
-  private boolean registerSession(WebSocketSession session, SignalingMessage message) {
+  private synchronized boolean registerSession(WebSocketSession session, SignalingMessage message) {
     String username = message.getSender();
     UserSession newUserSession = message.toUserSession(session);
 
