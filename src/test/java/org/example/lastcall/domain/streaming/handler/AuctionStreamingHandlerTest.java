@@ -365,4 +365,26 @@ class AuctionStreamingHandlerTest {
       verify(mockSession1, times(1)).sendMessage(any(TextMessage.class));
     }
   }
+
+  @Test
+  @DisplayName("같은 사용자가 새 세션으로 JOIN하면 기존 세션은 종료된다 (Kick-out)")
+  void givenExistingUser_whenJoinWithNewSession_thenOldSessionIsClosed() throws Exception {
+    // given: user1이 session1으로 JOIN
+    SignalingMessage join1 = SignalingMessage.builder().type(MessageType.JOIN.name())
+        .sender("user1").build();
+    handler.handleTextMessage(mockSession1,
+        new TextMessage(objectMapper.writeValueAsString(join1)));
+
+    // when: user1이 session2로 다시 JOIN
+    SignalingMessage join2 = SignalingMessage.builder().type(MessageType.JOIN.name())
+        .sender("user1").build();
+    handler.handleTextMessage(mockSession2,
+        new TextMessage(objectMapper.writeValueAsString(join2)));
+
+    // then: 기존 세션(session1)은 종료되어야 한다.
+    verify(mockSession1).close(CloseStatus.NORMAL);
+
+    // and: 새 세션(session2)으로는 JOIN 응답이 가야 한다.
+    verify(mockSession2, atLeastOnce()).sendMessage(any(TextMessage.class));
+  }
 }
