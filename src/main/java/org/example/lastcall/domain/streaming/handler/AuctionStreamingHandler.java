@@ -3,6 +3,7 @@ package org.example.lastcall.domain.streaming.handler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.lastcall.domain.streaming.dto.SignalingMessage;
@@ -31,6 +32,8 @@ public class AuctionStreamingHandler extends TextWebSocketHandler {
    */
   private final ConcurrentHashMap<String, UserSession> sessionsById = new ConcurrentHashMap<>();
   private final ConcurrentHashMap<String, UserSession> sessionsByName = new ConcurrentHashMap<>();
+
+  private final ReentrantLock sessionLock = new ReentrantLock();
 
   @Override
   public void afterConnectionEstablished(final WebSocketSession session) {
@@ -175,50 +178,60 @@ public class AuctionStreamingHandler extends TextWebSocketHandler {
    * - 같은 username으로 새 접속이 들어오면 기존 접속을 종료하고 새 접속으로 전환
    * - 재접속, 새로고침 등의 상황에서 빠른 접속 가능
    */
-  private synchronized boolean registerSession(WebSocketSession session, SignalingMessage message) {
-    String username = message.getSender();
-    UserSession newUserSession = message.toUserSession(session);
+  private boolean registerSession(WebSocketSession session, SignalingMessage message) {
+    sessionLock.lock();
+    try {
+      String username = message.getSender();
+      UserSession newUserSession = message.toUserSession(session);
 
-    // 1. 같은 세션이 다른 username으로 재JOIN하는 경우, 이전 username 매핑을 먼저 정리
-    UserSession previous = sessionsById.get(session.getId());
-    if (previous != null && !previous.getName().equals(username)) {
-      sessionsByName.remove(previous.getName(), previous);
-    }
-
-    // 2. username 기준으로 새 접속 등록 (기존 접속이 있으면 덮어쓰기)
-    UserSession oldUserSession = sessionsByName.put(username, newUserSession);
-
-    // 3. Kick-out: 기존 접속이 있고 다른 접속이면 강제 종료 후 새 접속으로 전환
-    if (oldUserSession != null && !oldUserSession.getSession().getId().equals(session.getId())) {
-      sessionsById.remove(oldUserSession.getSession().getId());
-      try {
-        oldUserSession.getSession().close(CloseStatus.NORMAL);
-        log.info("사용자 재접속: 세션을 갱신합니다(새로고침/네트워크 재연결) - username={}, oldSessionId={}, newSessionId={}",
-            username, oldUserSession.getSession().getId(), session.getId());
-      } catch (IOException e) {
-        log.warn("이전 접속 종료 실패: username={}, sessionId={}", username,
-            oldUserSession.getSession().getId(), e);
+      // 1. 같은 세션이 다른 username으로 재JOIN하는 경우, 이전 username 매핑을 먼저 정리
+      UserSession previous = sessionsById.get(session.getId());
+      if (previous != null && !previous.getName().equals(username)) {
+        sessionsByName.remove(previous.getName(), previous);
       }
+
+      // 2. username 기준으로 새 접속 등록 (기존 접속이 있으면 덮어쓰기)
+      UserSession oldUserSession = sessionsByName.put(username, newUserSession);
+
+      // 3. Kick-out: 기존 접속이 있고 다른 접속이면 강제 종료 후 새 접속으로 전환
+      if (oldUserSession != null && !oldUserSession.getSession().getId().equals(session.getId())) {
+        sessionsById.remove(oldUserSession.getSession().getId());
+        try {
+          oldUserSession.getSession().close(CloseStatus.NORMAL);
+          log.info("사용자 재접속: 세션을 갱신합니다(새로고침/네트워크 재연결) - username={}, oldSessionId={}, newSessionId={}",
+              username, oldUserSession.getSession().getId(), session.getId());
+        } catch (IOException e) {
+          log.warn("이전 접속 종료 실패: username={}, sessionId={}", username,
+              oldUserSession.getSession().getId(), e);
+        }
+      }
+
+      // 4. sessionId 기준 등록
+      sessionsById.put(session.getId(), newUserSession);
+
+      return true;
+    } finally {
+      sessionLock.unlock();
     }
-
-    // 4. sessionId 기준 등록
-    sessionsById.put(session.getId(), newUserSession);
-
-    return true;
   }
 
   /**
    * 세션 제거 (두 맵 동시 정리)
    */
-  private synchronized UserSession removeSession(WebSocketSession session) {
-    UserSession removed = sessionsById.remove(session.getId());
-    if (removed == null) {
-      return null;
-    }
+  private UserSession removeSession(WebSocketSession session) {
+    sessionLock.lock();
+    try {
+      UserSession removed = sessionsById.remove(session.getId());
+      if (removed == null) {
+        return null;
+      }
 
-    // 동일 객체일 때만 제거 (동시성 상황에서의 안전장치)
-    sessionsByName.remove(removed.getName(), removed);
-    return removed;
+      // 동일 객체일 때만 제거 (동시성 상황에서의 안전장치)
+      sessionsByName.remove(removed.getName(), removed);
+      return removed;
+    } finally {
+      sessionLock.unlock();
+    }
   }
 
   /**
