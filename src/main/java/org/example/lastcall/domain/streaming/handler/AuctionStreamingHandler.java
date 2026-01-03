@@ -8,7 +8,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.lastcall.domain.streaming.dto.SignalingMessage;
 import org.example.lastcall.domain.streaming.dto.UserSession;
 import org.example.lastcall.domain.streaming.enums.MessageType;
-import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -32,7 +31,6 @@ public class AuctionStreamingHandler extends TextWebSocketHandler {
    */
   private final ConcurrentHashMap<String, UserSession> sessionsById = new ConcurrentHashMap<>();
   private final ConcurrentHashMap<String, UserSession> sessionsByName = new ConcurrentHashMap<>();
-  private final ResourceLoader resourceLoader;
 
   @Override
   public void afterConnectionEstablished(final WebSocketSession session) {
@@ -135,7 +133,7 @@ public class AuctionStreamingHandler extends TextWebSocketHandler {
       log.info("사용자가 경매방에서 퇴장했습니다: {}", removed.getName());
       return;
     }
-    log.info("사용자가 경매방에서 퇴장했습니다: {}", session.getId());
+    log.warn("퇴장 요청을 받았으나 등록된 세션을 찾을 수 없습니다: {}", session.getId());
   }
 
   private void handleStartStream(SignalingMessage message) {

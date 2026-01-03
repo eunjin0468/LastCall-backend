@@ -31,13 +31,10 @@ class AuctionStreamingHandlerTest {
   private WebSocketSession mockSession1;
   private WebSocketSession mockSession2;
 
-  @Mock
-  private ResourceLoader resourceLoader;
-
   @BeforeEach
   void setUp() {
     objectMapper = new ObjectMapper();
-    handler = new AuctionStreamingHandler(objectMapper, resourceLoader);
+    handler = new AuctionStreamingHandler(objectMapper);
 
     mockSession1 = mock(WebSocketSession.class);
     mockSession2 = mock(WebSocketSession.class);
