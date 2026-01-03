@@ -8,8 +8,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.springframework.core.io.ResourceLoader;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -62,19 +60,18 @@ class AuctionStreamingHandlerTest {
 
     @Test
     @DisplayName("WebSocket 연결이 종료되면 세션이 제거되어 브로드캐스트에서 제외된다")
-    void givenActiveSession_whenConnectionClosed_thenSessionRemovedFromBroadcast() throws Exception {
+    void givenActiveSession_whenConnectionClosed_thenSessionRemovedFromBroadcast()
+        throws Exception {
       // given: 2개 세션 JOIN
-      SignalingMessage join1 = SignalingMessage.builder()
-          .type(MessageType.JOIN.name())
-          .sender("user1")
-          .build();
-      handler.handleTextMessage(mockSession1, new TextMessage(objectMapper.writeValueAsString(join1)));
+      SignalingMessage join1 = SignalingMessage.builder().type(MessageType.JOIN.name())
+          .sender("user1").build();
+      handler.handleTextMessage(mockSession1,
+          new TextMessage(objectMapper.writeValueAsString(join1)));
 
-      SignalingMessage join2 = SignalingMessage.builder()
-          .type(MessageType.JOIN.name())
-          .sender("user2")
-          .build();
-      handler.handleTextMessage(mockSession2, new TextMessage(objectMapper.writeValueAsString(join2)));
+      SignalingMessage join2 = SignalingMessage.builder().type(MessageType.JOIN.name())
+          .sender("user2").build();
+      handler.handleTextMessage(mockSession2,
+          new TextMessage(objectMapper.writeValueAsString(join2)));
 
       // JOIN 응답 호출 기록 초기화
       clearInvocations(mockSession1);
@@ -83,11 +80,10 @@ class AuctionStreamingHandlerTest {
       // when: session1 종료 후 broadcast
       handler.afterConnectionClosed(mockSession1, CloseStatus.NORMAL);
 
-      SignalingMessage broadcast = SignalingMessage.builder()
-          .type(MessageType.START_STREAM.name())
-          .sender("user2")
-          .build();
-      handler.handleTextMessage(mockSession2, new TextMessage(objectMapper.writeValueAsString(broadcast)));
+      SignalingMessage broadcast = SignalingMessage.builder().type(MessageType.START_STREAM.name())
+          .sender("user2").build();
+      handler.handleTextMessage(mockSession2,
+          new TextMessage(objectMapper.writeValueAsString(broadcast)));
 
       // then
       verify(mockSession1, never()).sendMessage(any(TextMessage.class));  // 제거된 세션
@@ -101,12 +97,11 @@ class AuctionStreamingHandlerTest {
 
     @Test
     @DisplayName("JOIN 메시지를 받으면 세션이 등록되고 응답이 전송된다")
-    void givenJoinMessage_whenHandleMessage_thenSessionRegisteredAndResponseSent() throws Exception {
+    void givenJoinMessage_whenHandleMessage_thenSessionRegisteredAndResponseSent()
+        throws Exception {
       // given
-      SignalingMessage joinMessage = SignalingMessage.builder()
-          .type(MessageType.JOIN.name())
-          .sender("user1")
-          .build();
+      SignalingMessage joinMessage = SignalingMessage.builder().type(MessageType.JOIN.name())
+          .sender("user1").build();
 
       String jsonMessage = objectMapper.writeValueAsString(joinMessage);
 
@@ -122,10 +117,8 @@ class AuctionStreamingHandlerTest {
     void givenEnterRoomMessage_whenHandleMessage_thenUserEntersRoom() throws Exception {
       // given
       SignalingMessage enterMessage = SignalingMessage.builder()
-          .type(MessageType.ENTER_AUCTION_ROOM.name())
-          .sender("user1")
-          .data(Map.of("roomId", "auction123"))
-          .build();
+          .type(MessageType.ENTER_AUCTION_ROOM.name()).sender("user1")
+          .data(Map.of("roomId", "auction123")).build();
 
       String jsonMessage = objectMapper.writeValueAsString(enterMessage);
 
@@ -142,23 +135,27 @@ class AuctionStreamingHandlerTest {
       // given: 2명의 사용자가 방에 입장
       SignalingMessage enterMessage1 = SignalingMessage.builder()
           .type(MessageType.ENTER_AUCTION_ROOM.name()).sender("user1").build();
-      handler.handleTextMessage(mockSession1, new TextMessage(objectMapper.writeValueAsString(enterMessage1)));
+      handler.handleTextMessage(mockSession1,
+          new TextMessage(objectMapper.writeValueAsString(enterMessage1)));
 
       SignalingMessage enterMessage2 = SignalingMessage.builder()
           .type(MessageType.ENTER_AUCTION_ROOM.name()).sender("user2").build();
-      handler.handleTextMessage(mockSession2, new TextMessage(objectMapper.writeValueAsString(enterMessage2)));
+      handler.handleTextMessage(mockSession2,
+          new TextMessage(objectMapper.writeValueAsString(enterMessage2)));
 
       clearInvocations(mockSession1, mockSession2);
 
       // when: user1이 퇴장
       SignalingMessage leaveMessage = SignalingMessage.builder()
           .type(MessageType.LEAVE_AUCTION_ROOM.name()).sender("user1").build();
-      handler.handleTextMessage(mockSession1, new TextMessage(objectMapper.writeValueAsString(leaveMessage)));
+      handler.handleTextMessage(mockSession1,
+          new TextMessage(objectMapper.writeValueAsString(leaveMessage)));
 
       // and: user2가 브로드캐스트 메시지 전송
       SignalingMessage broadcastMessage = SignalingMessage.builder()
           .type(MessageType.SEND_CHAT.name()).sender("user2").data("hello").build();
-      handler.handleTextMessage(mockSession2, new TextMessage(objectMapper.writeValueAsString(broadcastMessage)));
+      handler.handleTextMessage(mockSession2,
+          new TextMessage(objectMapper.writeValueAsString(broadcastMessage)));
 
       // then: user1은 메시지를 받지 않고, user2는 받음
       verify(mockSession1, never()).sendMessage(any(TextMessage.class));
@@ -174,24 +171,21 @@ class AuctionStreamingHandlerTest {
     @DisplayName("START_STREAM 메시지를 받으면 모든 사용자에게 브로드캐스트된다")
     void givenStartStreamMessage_whenHandleMessage_thenBroadcastToAllUsers() throws Exception {
       // given
-      SignalingMessage join1 = SignalingMessage.builder()
-          .type(MessageType.JOIN.name())
-          .sender("user1")
-          .build();
-      handler.handleTextMessage(mockSession1, new TextMessage(objectMapper.writeValueAsString(join1)));
+      SignalingMessage join1 = SignalingMessage.builder().type(MessageType.JOIN.name())
+          .sender("user1").build();
+      handler.handleTextMessage(mockSession1,
+          new TextMessage(objectMapper.writeValueAsString(join1)));
 
-      SignalingMessage join2 = SignalingMessage.builder()
-          .type(MessageType.JOIN.name())
-          .sender("user2")
-          .build();
-      handler.handleTextMessage(mockSession2, new TextMessage(objectMapper.writeValueAsString(join2)));
+      SignalingMessage join2 = SignalingMessage.builder().type(MessageType.JOIN.name())
+          .sender("user2").build();
+      handler.handleTextMessage(mockSession2,
+          new TextMessage(objectMapper.writeValueAsString(join2)));
 
       // when
       SignalingMessage startStream = SignalingMessage.builder()
-          .type(MessageType.START_STREAM.name())
-          .sender("user1")
-          .build();
-      handler.handleTextMessage(mockSession1, new TextMessage(objectMapper.writeValueAsString(startStream)));
+          .type(MessageType.START_STREAM.name()).sender("user1").build();
+      handler.handleTextMessage(mockSession1,
+          new TextMessage(objectMapper.writeValueAsString(startStream)));
 
       // then
       verify(mockSession1, atLeastOnce()).sendMessage(any(TextMessage.class));
@@ -202,18 +196,16 @@ class AuctionStreamingHandlerTest {
     @DisplayName("STOP_STREAM 메시지를 받으면 모든 사용자에게 브로드캐스트된다")
     void givenStopStreamMessage_whenHandleMessage_thenBroadcastToAllUsers() throws Exception {
       // given
-      SignalingMessage join1 = SignalingMessage.builder()
-          .type(MessageType.JOIN.name())
-          .sender("user1")
-          .build();
-      handler.handleTextMessage(mockSession1, new TextMessage(objectMapper.writeValueAsString(join1)));
+      SignalingMessage join1 = SignalingMessage.builder().type(MessageType.JOIN.name())
+          .sender("user1").build();
+      handler.handleTextMessage(mockSession1,
+          new TextMessage(objectMapper.writeValueAsString(join1)));
 
       // when
-      SignalingMessage stopStream = SignalingMessage.builder()
-          .type(MessageType.STOP_STREAM.name())
-          .sender("user1")
-          .build();
-      handler.handleTextMessage(mockSession1, new TextMessage(objectMapper.writeValueAsString(stopStream)));
+      SignalingMessage stopStream = SignalingMessage.builder().type(MessageType.STOP_STREAM.name())
+          .sender("user1").build();
+      handler.handleTextMessage(mockSession1,
+          new TextMessage(objectMapper.writeValueAsString(stopStream)));
 
       // then
       verify(mockSession1, atLeastOnce()).sendMessage(any(TextMessage.class));
@@ -223,19 +215,16 @@ class AuctionStreamingHandlerTest {
     @DisplayName("SEND_CHAT 메시지를 받으면 모든 사용자에게 브로드캐스트된다")
     void givenChatMessage_whenHandleMessage_thenBroadcastToAllUsers() throws Exception {
       // given
-      SignalingMessage join1 = SignalingMessage.builder()
-          .type(MessageType.JOIN.name())
-          .sender("user1")
-          .build();
-      handler.handleTextMessage(mockSession1, new TextMessage(objectMapper.writeValueAsString(join1)));
+      SignalingMessage join1 = SignalingMessage.builder().type(MessageType.JOIN.name())
+          .sender("user1").build();
+      handler.handleTextMessage(mockSession1,
+          new TextMessage(objectMapper.writeValueAsString(join1)));
 
       // when
-      SignalingMessage chatMessage = SignalingMessage.builder()
-          .type(MessageType.SEND_CHAT.name())
-          .sender("user1")
-          .data("Hello, World!")
-          .build();
-      handler.handleTextMessage(mockSession1, new TextMessage(objectMapper.writeValueAsString(chatMessage)));
+      SignalingMessage chatMessage = SignalingMessage.builder().type(MessageType.SEND_CHAT.name())
+          .sender("user1").data("Hello, World!").build();
+      handler.handleTextMessage(mockSession1,
+          new TextMessage(objectMapper.writeValueAsString(chatMessage)));
 
       // then
       verify(mockSession1, atLeastOnce()).sendMessage(any(TextMessage.class));
@@ -245,23 +234,20 @@ class AuctionStreamingHandlerTest {
     @DisplayName("SEND_BID 메시지를 받으면 모든 사용자에게 브로드캐스트된다")
     void givenBidMessage_whenHandleMessage_thenBroadcastToAllUsers() throws Exception {
       // given
-      SignalingMessage join1 = SignalingMessage.builder()
-          .type(MessageType.JOIN.name())
-          .sender("user1")
-          .build();
-      handler.handleTextMessage(mockSession1, new TextMessage(objectMapper.writeValueAsString(join1)));
+      SignalingMessage join1 = SignalingMessage.builder().type(MessageType.JOIN.name())
+          .sender("user1").build();
+      handler.handleTextMessage(mockSession1,
+          new TextMessage(objectMapper.writeValueAsString(join1)));
 
       Map<String, Object> bidData = new HashMap<>();
       bidData.put("amount", 10000);
       bidData.put("auctionId", "123");
 
       // when
-      SignalingMessage bidMessage = SignalingMessage.builder()
-          .type(MessageType.SEND_BID.name())
-          .sender("user1")
-          .data(bidData)
-          .build();
-      handler.handleTextMessage(mockSession1, new TextMessage(objectMapper.writeValueAsString(bidMessage)));
+      SignalingMessage bidMessage = SignalingMessage.builder().type(MessageType.SEND_BID.name())
+          .sender("user1").data(bidData).build();
+      handler.handleTextMessage(mockSession1,
+          new TextMessage(objectMapper.writeValueAsString(bidMessage)));
 
       // then
       verify(mockSession1, atLeastOnce()).sendMessage(any(TextMessage.class));
@@ -276,30 +262,25 @@ class AuctionStreamingHandlerTest {
     @DisplayName("OFFER 메시지를 받으면 특정 사용자에게만 전송된다")
     void givenOfferMessage_whenHandleMessage_thenSendToTargetUserOnly() throws Exception {
       // given
-      SignalingMessage joinHost = SignalingMessage.builder()
-          .type(MessageType.JOIN.name())
-          .sender("host")
-          .build();
-      handler.handleTextMessage(mockSession1, new TextMessage(objectMapper.writeValueAsString(joinHost)));
+      SignalingMessage joinHost = SignalingMessage.builder().type(MessageType.JOIN.name())
+          .sender("host").build();
+      handler.handleTextMessage(mockSession1,
+          new TextMessage(objectMapper.writeValueAsString(joinHost)));
 
-      SignalingMessage joinViewer = SignalingMessage.builder()
-          .type(MessageType.JOIN.name())
-          .sender("viewer")
-          .build();
-      handler.handleTextMessage(mockSession2, new TextMessage(objectMapper.writeValueAsString(joinViewer)));
+      SignalingMessage joinViewer = SignalingMessage.builder().type(MessageType.JOIN.name())
+          .sender("viewer").build();
+      handler.handleTextMessage(mockSession2,
+          new TextMessage(objectMapper.writeValueAsString(joinViewer)));
 
       Map<String, Object> sdpData = new HashMap<>();
       sdpData.put("type", "offer");
       sdpData.put("sdp", "v=0...");
 
       // when
-      SignalingMessage offerMessage = SignalingMessage.builder()
-          .type(MessageType.OFFER.name())
-          .sender("host")
-          .receiver("viewer")
-          .data(sdpData)
-          .build();
-      handler.handleTextMessage(mockSession1, new TextMessage(objectMapper.writeValueAsString(offerMessage)));
+      SignalingMessage offerMessage = SignalingMessage.builder().type(MessageType.OFFER.name())
+          .sender("host").receiver("viewer").data(sdpData).build();
+      handler.handleTextMessage(mockSession1,
+          new TextMessage(objectMapper.writeValueAsString(offerMessage)));
 
       // then
       verify(mockSession2, atLeastOnce()).sendMessage(any(TextMessage.class));
@@ -309,30 +290,25 @@ class AuctionStreamingHandlerTest {
     @DisplayName("ANSWER 메시지를 받으면 특정 사용자에게만 전송된다")
     void givenAnswerMessage_whenHandleMessage_thenSendToTargetUserOnly() throws Exception {
       // given
-      SignalingMessage joinHost = SignalingMessage.builder()
-          .type(MessageType.JOIN.name())
-          .sender("host")
-          .build();
-      handler.handleTextMessage(mockSession1, new TextMessage(objectMapper.writeValueAsString(joinHost)));
+      SignalingMessage joinHost = SignalingMessage.builder().type(MessageType.JOIN.name())
+          .sender("host").build();
+      handler.handleTextMessage(mockSession1,
+          new TextMessage(objectMapper.writeValueAsString(joinHost)));
 
-      SignalingMessage joinViewer = SignalingMessage.builder()
-          .type(MessageType.JOIN.name())
-          .sender("viewer")
-          .build();
-      handler.handleTextMessage(mockSession2, new TextMessage(objectMapper.writeValueAsString(joinViewer)));
+      SignalingMessage joinViewer = SignalingMessage.builder().type(MessageType.JOIN.name())
+          .sender("viewer").build();
+      handler.handleTextMessage(mockSession2,
+          new TextMessage(objectMapper.writeValueAsString(joinViewer)));
 
       Map<String, Object> sdpData = new HashMap<>();
       sdpData.put("type", "answer");
       sdpData.put("sdp", "v=0...");
 
       // when
-      SignalingMessage answerMessage = SignalingMessage.builder()
-          .type(MessageType.ANSWER.name())
-          .sender("viewer")
-          .receiver("host")
-          .data(sdpData)
-          .build();
-      handler.handleTextMessage(mockSession2, new TextMessage(objectMapper.writeValueAsString(answerMessage)));
+      SignalingMessage answerMessage = SignalingMessage.builder().type(MessageType.ANSWER.name())
+          .sender("viewer").receiver("host").data(sdpData).build();
+      handler.handleTextMessage(mockSession2,
+          new TextMessage(objectMapper.writeValueAsString(answerMessage)));
 
       // then
       verify(mockSession1, atLeastOnce()).sendMessage(any(TextMessage.class));
@@ -342,17 +318,15 @@ class AuctionStreamingHandlerTest {
     @DisplayName("ICE_CANDIDATE 메시지를 받으면 특정 사용자에게만 전송된다")
     void givenIceCandidateMessage_whenHandleMessage_thenSendToTargetUserOnly() throws Exception {
       // given
-      SignalingMessage joinHost = SignalingMessage.builder()
-          .type(MessageType.JOIN.name())
-          .sender("host")
-          .build();
-      handler.handleTextMessage(mockSession1, new TextMessage(objectMapper.writeValueAsString(joinHost)));
+      SignalingMessage joinHost = SignalingMessage.builder().type(MessageType.JOIN.name())
+          .sender("host").build();
+      handler.handleTextMessage(mockSession1,
+          new TextMessage(objectMapper.writeValueAsString(joinHost)));
 
-      SignalingMessage joinViewer = SignalingMessage.builder()
-          .type(MessageType.JOIN.name())
-          .sender("viewer")
-          .build();
-      handler.handleTextMessage(mockSession2, new TextMessage(objectMapper.writeValueAsString(joinViewer)));
+      SignalingMessage joinViewer = SignalingMessage.builder().type(MessageType.JOIN.name())
+          .sender("viewer").build();
+      handler.handleTextMessage(mockSession2,
+          new TextMessage(objectMapper.writeValueAsString(joinViewer)));
 
       Map<String, Object> candidateData = new HashMap<>();
       candidateData.put("candidate", "candidate:...");
@@ -361,12 +335,10 @@ class AuctionStreamingHandlerTest {
 
       // when
       SignalingMessage iceMessage = SignalingMessage.builder()
-          .type(MessageType.ICE_CANDIDATE.name())
-          .sender("host")
-          .receiver("viewer")
-          .data(candidateData)
-          .build();
-      handler.handleTextMessage(mockSession1, new TextMessage(objectMapper.writeValueAsString(iceMessage)));
+          .type(MessageType.ICE_CANDIDATE.name()).sender("host").receiver("viewer")
+          .data(candidateData).build();
+      handler.handleTextMessage(mockSession1,
+          new TextMessage(objectMapper.writeValueAsString(iceMessage)));
 
       // then
       verify(mockSession2, atLeastOnce()).sendMessage(any(TextMessage.class));
@@ -376,24 +348,18 @@ class AuctionStreamingHandlerTest {
     @DisplayName("존재하지 않는 사용자에게 OFFER를 보내면 전송되지 않고 예외도 발생하지 않는다")
     void givenNonExistentReceiver_whenSendOffer_thenNotSentAndNoException() throws Exception {
       // given: host만 JOIN
-      SignalingMessage joinHost = SignalingMessage.builder()
-          .type(MessageType.JOIN.name())
-          .sender("host")
-          .build();
-      handler.handleTextMessage(mockSession1, new TextMessage(objectMapper.writeValueAsString(joinHost)));
+      SignalingMessage joinHost = SignalingMessage.builder().type(MessageType.JOIN.name())
+          .sender("host").build();
+      handler.handleTextMessage(mockSession1,
+          new TextMessage(objectMapper.writeValueAsString(joinHost)));
 
       // when: 존재하지 않는 사용자에게 OFFER 전송 시도
-      SignalingMessage offerMessage = SignalingMessage.builder()
-          .type(MessageType.OFFER.name())
-          .sender("host")
-          .receiver("nonexistent")
-          .data(Map.of("sdp", "v=0..."))
-          .build();
+      SignalingMessage offerMessage = SignalingMessage.builder().type(MessageType.OFFER.name())
+          .sender("host").receiver("nonexistent").data(Map.of("sdp", "v=0...")).build();
 
       // then: 예외 발생 안 함
-      assertDoesNotThrow(() ->
-          handler.handleTextMessage(mockSession1, new TextMessage(objectMapper.writeValueAsString(offerMessage)))
-      );
+      assertDoesNotThrow(() -> handler.handleTextMessage(mockSession1,
+          new TextMessage(objectMapper.writeValueAsString(offerMessage))));
 
       // JOIN 응답 1번 + OFFER 전송 0번 = 총 1번만 호출
       verify(mockSession1, times(1)).sendMessage(any(TextMessage.class));
