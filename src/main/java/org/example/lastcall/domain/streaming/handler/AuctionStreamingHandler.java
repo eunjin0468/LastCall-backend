@@ -115,11 +115,7 @@ public class AuctionStreamingHandler extends TextWebSocketHandler {
 
     UserSession existing = sessionsById.get(session.getId());
     if (existing == null) {
-      boolean registered = registerSession(session, message);
-      if (!registered) {
-        log.warn("사용자 이름이 이미 사용 중이라 입장할 수 없습니다: {}", username);
-        return;
-      }
+      registerSession(session, message);
     }
 
     log.info("사용자가 경매방에 입장하였습니다: {}", username);
@@ -162,6 +158,7 @@ public class AuctionStreamingHandler extends TextWebSocketHandler {
         sendMessage(userSession.getSession(), message);
       } catch (IOException e) {
         log.error("메시지 전송에 실패했습니다: {}", userSession.getName(), e);
+        removeSession(userSession.getSession());
       }
     });
   }
@@ -213,7 +210,7 @@ public class AuctionStreamingHandler extends TextWebSocketHandler {
   /**
    * 세션 제거 (두 맵 동시 정리)
    */
-  private UserSession removeSession(WebSocketSession session) {
+  private synchronized UserSession removeSession(WebSocketSession session) {
     UserSession removed = sessionsById.remove(session.getId());
     if (removed == null) {
       return null;
@@ -246,7 +243,8 @@ public class AuctionStreamingHandler extends TextWebSocketHandler {
     try {
       sendMessage(targetUser.getSession(), message);
     } catch (IOException e) {
-      log.error("사용자에게 메시지 전송에 실패했습니다: {}", username, e);
+      log.error("사용자에게 메시지 전송에 실패했습니다: user={}, sessionId={}", username, targetUser.getSession().getId(), e);
+      removeSession(targetUser.getSession());
     }
   }
 }
