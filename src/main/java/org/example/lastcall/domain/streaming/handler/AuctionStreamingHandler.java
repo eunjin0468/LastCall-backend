@@ -104,10 +104,9 @@ public class AuctionStreamingHandler extends TextWebSocketHandler {
   public void afterConnectionClosed(final WebSocketSession session, final CloseStatus status) {
     UserSession removed = removeSession(session);
     if (removed != null) {
-      log.info("WebSocket 연결 종료: {}", session.getId());
+      log.info("WebSocket 연결 종료: user={}, sessionId={}", removed.getName(), session.getId());
     }
-    log.info("WebSocket 연결 종료: {}", session.getId());
-    removeSession(session);
+    log.warn("연결이 종료되었지만 등록된 세션 정보를 찾을 수 없습니다: {}", session.getId());
   }
 
   private void handleEnterAuctionRoom(WebSocketSession session, SignalingMessage message) {
