@@ -8,6 +8,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.springframework.core.io.ResourceLoader;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -29,10 +31,13 @@ class AuctionStreamingHandlerTest {
   private WebSocketSession mockSession1;
   private WebSocketSession mockSession2;
 
+  @Mock
+  private ResourceLoader resourceLoader;
+
   @BeforeEach
   void setUp() {
     objectMapper = new ObjectMapper();
-    handler = new AuctionStreamingHandler(objectMapper);
+    handler = new AuctionStreamingHandler(objectMapper, resourceLoader);
 
     mockSession1 = mock(WebSocketSession.class);
     mockSession2 = mock(WebSocketSession.class);
