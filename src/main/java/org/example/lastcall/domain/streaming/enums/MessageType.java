@@ -8,4 +8,7 @@ public enum MessageType {
   STOP_STREAM,            // 스트리밍 종료
   SEND_CHAT,              // 실시간 채팅
   SEND_BID,               // 실시간 입찰(원하면 WebRTC가 아니라 REST+WebSocket도 가능)
+  OFFER,                  // WebRTC SDP offer (호스트 → 시청자)
+  ANSWER,                 // WebRTC SDP answer (시청자 → 호스트)
+  ICE_CANDIDATE           // WebRTC ICE candidate (양방향 네트워크 경로)
 }
